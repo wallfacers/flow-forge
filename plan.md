@@ -23,17 +23,17 @@
 
 ### ✅ Week 1-2: 内核原型 (已完成)
 
-| 任务 | 状态 | 完成内容 | 文件 |
-|------|:----:|----------|------|
-| Maven多模块骨架 | ✅ | 父POM + 8个子模块 | `pom.xml` |
-| 核心模型类 | ✅ | 8个模型类 | `flow-forge-core-model/.../model/*.java` |
-| 异常类 | ✅ | 自定义异常 | `WorkflowException.java`<br>`WorkflowValidationException.java` |
-| JSON DSL解析器 | ✅ | 解析器+验证器 | `WorkflowDslParser.java`<br>`JsonDslValidator.java` |
-| DAG循环检测 | ✅ | JGraphT循环检测 | `CycleDetector.java` |
-| 入度调度算法 | ✅ | 拓扑排序+入度计算 | `InDegreeScheduler.java` |
-| 变量解析器 | ✅ | JSONPath支持 | `VariableResolver.java` |
-| 单元测试 | ✅ | 模型和DSL测试 | `WorkflowDefinitionTest.java`<br>`WorkflowDslParserTest.java` |
-| 示例工作流 | ✅ | JSON示例 | `example-workflow.json` |
+| 任务 | 状态 | 完成内容 | 文件 | 提交 |
+|------|:----:|----------|------|------|
+| Maven多模块骨架 | ✅ | 父POM + 8个子模块 | `pom.xml` | # f7fa853 |
+| 核心模型类 | ✅ | 8个模型类 | `flow-forge-core-model/.../model/*.java` | # f7fa853 |
+| 异常类 | ✅ | 自定义异常 | `WorkflowException.java`<br>`WorkflowValidationException.java` | # f7fa853 |
+| JSON DSL解析器 | ✅ | 解析器+验证器 | `WorkflowDslParser.java`<br>`JsonDslValidator.java` | # f7fa853 |
+| DAG循环检测 | ✅ | JGraphT循环检测 | `CycleDetector.java` | # f7fa853 |
+| 入度调度算法 | ✅ | 拓扑排序+入度计算 | `InDegreeScheduler.java` | # f7fa853 |
+| 变量解析器 | ✅ | JSONPath支持 | `VariableResolver.java` | # f7fa853 |
+| 单元测试 | ✅ | 模型和DSL测试 | `WorkflowDefinitionTest.java`<br>`WorkflowDslParserTest.java` | # f7fa853 |
+| 示例工作流 | ✅ | JSON示例 | `example-workflow.json` | # f7fa853 |
 
 **里程碑M1达成**: 能够解析JSON DSL并检测循环
 
