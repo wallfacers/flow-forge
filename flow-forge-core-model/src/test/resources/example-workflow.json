@@ -1,0 +1,81 @@
+{
+  "id": "workflow-001",
+  "name": "示例工作流",
+  "description": "一个简单的HTTP调用和日志输出工作流",
+  "version": "1.0.0",
+  "tenantId": "tenant-001",
+  "globalVariables": {
+    "apiKey": "your-api-key",
+    "baseUrl": "https://api.example.com"
+  },
+  "nodes": [
+    {
+      "id": "http-request",
+      "name": "获取用户数据",
+      "type": "http",
+      "description": "调用外部API获取用户数据",
+      "config": {
+        "url": "{{global.baseUrl}}/users/{{input.userId}}",
+        "method": "GET",
+        "headers": {
+          "Authorization": "Bearer {{global.apiKey}}",
+          "Content-Type": "application/json"
+        },
+        "timeout": 5000
+      },
+      "retryCount": 3,
+      "retryInterval": 1000
+    },
+    {
+      "id": "condition-check",
+      "name": "检查状态",
+      "type": "if",
+      "description": "检查HTTP响应状态码",
+      "config": {
+        "condition": "{{http-request.output.status}} == 200"
+      }
+    },
+    {
+      "id": "log-success",
+      "name": "记录成功",
+      "type": "log",
+      "description": "记录成功日志",
+      "config": {
+        "message": "请求成功，用户名: {{http-request.output.data.name}}",
+        "level": "INFO"
+      }
+    },
+    {
+      "id": "log-failure",
+      "name": "记录失败",
+      "type": "log",
+      "description": "记录失败日志",
+      "config": {
+        "message": "请求失败，状态码: {{http-request.output.status}}",
+        "level": "ERROR"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-1",
+      "sourceNodeId": "http-request",
+      "targetNodeId": "condition-check",
+      "label": "完成后检查"
+    },
+    {
+      "id": "edge-2",
+      "sourceNodeId": "condition-check",
+      "targetNodeId": "log-success",
+      "condition": "{{http-request.output.status}} == 200",
+      "label": "成功分支"
+    },
+    {
+      "id": "edge-3",
+      "sourceNodeId": "condition-check",
+      "targetNodeId": "log-failure",
+      "condition": "{{http-request.output.status}} != 200",
+      "label": "失败分支"
+    }
+  ]
+}
