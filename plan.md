@@ -47,12 +47,12 @@
 
 | ID | 任务 | 文件路径 | 功能描述 | 注意事项 | 状态 | 提交 |
 |----|------|----------|----------|----------|:----:|-----|
-| 3.1 | NodeExecutor接口 | `flow-forge-nodes/.../node/NodeExecutor.java` | 定义execute()方法，支持变量解析和超时控制 | execute需支持`{{}}`变量解析 | ✅ | # (pending) |
-| 3.2 | 执行器工厂 | `.../node/NodeExecutorFactory.java` | Spring自动注入所有实现，按类型返回执行器 | 使用Map<NodeType, NodeExecutor>存储 | ✅ | # (pending) |
-| 3.3 | HTTP节点 | `.../node/http/HttpNodeExecutor.java` | 支持GET/POST/PUT/DELETE、headers、body、超时 | 使用RestTemplate/WebClient，需完整记录响应 | ✅ | # (pending) |
-| 3.4 | Log节点 | `.../node/log/LogNodeExecutor.java` | 支持INFO/WARN/ERROR/DEBUG级别，变量解析 | 输出到SLF4J | ✅ | # (pending) |
-| 3.5 | 变量解析集成 | 复用`VariableResolver.java` | 在节点执行前解析config中的变量 | 使用`resolveMap()`处理config | ✅ | # (pending) |
-| 3.6 | 单元测试 | `.../node/HttpNodeExecutorTest.java`<br>`.../node/LogNodeExecutorTest.java` | HTTP请求成功/失败、Log输出、变量解析验证 | 覆盖率目标70%+ | ✅ | # (pending) |
+| 3.1 | NodeExecutor接口 | `flow-forge-nodes/.../node/NodeExecutor.java` | 定义execute()方法，支持变量解析和超时控制 | execute需支持`{{}}`变量解析 | ✅ | # 4daecd3 |
+| 3.2 | 执行器工厂 | `.../node/NodeExecutorFactory.java` | Spring自动注入所有实现，按类型返回执行器 | 使用Map<NodeType, NodeExecutor>存储 | ✅ | # 4daecd3 |
+| 3.3 | HTTP节点 | `.../node/http/HttpNodeExecutor.java` | 支持GET/POST/PUT/DELETE、headers、body、超时 | 使用RestTemplate/WebClient，需完整记录响应 | ✅ | # 4daecd3 |
+| 3.4 | Log节点 | `.../node/log/LogNodeExecutor.java` | 支持INFO/WARN/ERROR/DEBUG级别，变量解析 | 输出到SLF4J | ✅ | # 4daecd3 |
+| 3.5 | 变量解析集成 | 复用`VariableResolver.java` | 在节点执行前解析config中的变量 | 使用`resolveMap()`处理config | ✅ | # 4daecd3 |
+| 3.6 | 单元测试 | `.../node/HttpNodeExecutorTest.java`<br>`.../node/LogNodeExecutorTest.java` | HTTP请求成功/失败、Log输出、变量解析验证 | 覆盖率目标70%+ | ✅ | # 4daecd3 |
 
 **状态说明**: 🔲 未开始 | 🔄 进行中 | ✅ 已完成 | ❌ 失败/阻塞
 
@@ -68,9 +68,9 @@
 ```
 
 **验收标准 (Milestone M2)**:
-- [ ] 能够执行 HTTP → Log 简单流程
-- [ ] 变量解析正确工作
-- [ ] 单元测试通过
+- [x] 能够执行 HTTP → Log 简单流程
+- [x] 变量解析正确工作
+- [x] 单元测试通过
 
 ---
 
@@ -337,7 +337,7 @@ refactor: 重构
 | 里程碑 | 周次 | 验收标准 |
 |--------|------|----------|
 | M1 | W1-W2 | ✅ 解析JSON DSL并检测循环 |
-| M2 | W3 | 🔲 执行HTTP→Log流程，变量解析正确 |
+| M2 | W3 | ✅ 执行HTTP→Log流程，变量解析正确 |
 | M3 | W5 | 🔲 安全执行JS脚本，资源限制生效 |
 | M4 | W6 | 🔲 条件分支和合并正常工作 |
 | M5 | W8 | 🔲 进程崩溃后恢复，重试策略正确 |
