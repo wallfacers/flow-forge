@@ -5,7 +5,7 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git rev-parse:*)",
-      "Bash(mvn compile:*)"
+      "Bash(mvn:*)"
     ]
   }
 }

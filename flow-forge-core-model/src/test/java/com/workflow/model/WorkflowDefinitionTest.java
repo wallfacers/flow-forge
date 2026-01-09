@@ -1,15 +1,9 @@
 package com.workflow.model;
 
-import com.workflow.dsl.JsonDslValidator;
 import com.workflow.dsl.WorkflowDslParser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 
 import static org.junit.jupiter.api.Assertions.*;
 

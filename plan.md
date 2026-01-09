@@ -41,18 +41,18 @@
 
 ## 未完成任务清单
 
-### 📋 Week 3: 基础节点执行器
+### ✅ Week 3: 基础节点执行器 (已完成)
 
 **目标**: 实现HTTP和Log节点执行器，能够执行简单的 HTTP → Log 流程
 
 | ID | 任务 | 文件路径 | 功能描述 | 注意事项 | 状态 | 提交 |
 |----|------|----------|----------|----------|:----:|-----|
-| 3.1 | NodeExecutor接口 | `flow-forge-nodes/.../node/NodeExecutor.java` | 定义execute()方法，支持变量解析和超时控制 | execute需支持`{{}}`变量解析 | 🔲 | - |
-| 3.2 | 执行器工厂 | `.../node/NodeExecutorFactory.java` | Spring自动注入所有实现，按类型返回执行器 | 使用Map<NodeType, NodeExecutor>存储 | 🔲 | - |
-| 3.3 | HTTP节点 | `.../node/http/HttpNodeExecutor.java` | 支持GET/POST/PUT/DELETE、headers、body、超时 | 使用RestTemplate/WebClient，需完整记录响应 | 🔲 | - |
-| 3.4 | Log节点 | `.../node/log/LogNodeExecutor.java` | 支持INFO/WARN/ERROR/DEBUG级别，变量解析 | 输出到SLF4J | 🔲 | - |
-| 3.5 | 变量解析集成 | 复用`VariableResolver.java` | 在节点执行前解析config中的变量 | 使用`resolveMap()`处理config | 🔲 | - |
-| 3.6 | 单元测试 | `.../node/HttpNodeExecutorTest.java`<br>`.../node/LogNodeExecutorTest.java` | HTTP请求成功/失败、Log输出、变量解析验证 | 覆盖率目标70%+ | 🔲 | - |
+| 3.1 | NodeExecutor接口 | `flow-forge-nodes/.../node/NodeExecutor.java` | 定义execute()方法，支持变量解析和超时控制 | execute需支持`{{}}`变量解析 | ✅ | # (pending) |
+| 3.2 | 执行器工厂 | `.../node/NodeExecutorFactory.java` | Spring自动注入所有实现，按类型返回执行器 | 使用Map<NodeType, NodeExecutor>存储 | ✅ | # (pending) |
+| 3.3 | HTTP节点 | `.../node/http/HttpNodeExecutor.java` | 支持GET/POST/PUT/DELETE、headers、body、超时 | 使用RestTemplate/WebClient，需完整记录响应 | ✅ | # (pending) |
+| 3.4 | Log节点 | `.../node/log/LogNodeExecutor.java` | 支持INFO/WARN/ERROR/DEBUG级别，变量解析 | 输出到SLF4J | ✅ | # (pending) |
+| 3.5 | 变量解析集成 | 复用`VariableResolver.java` | 在节点执行前解析config中的变量 | 使用`resolveMap()`处理config | ✅ | # (pending) |
+| 3.6 | 单元测试 | `.../node/HttpNodeExecutorTest.java`<br>`.../node/LogNodeExecutorTest.java` | HTTP请求成功/失败、Log输出、变量解析验证 | 覆盖率目标70%+ | ✅ | # (pending) |
 
 **状态说明**: 🔲 未开始 | 🔄 进行中 | ✅ 已完成 | ❌ 失败/阻塞
 

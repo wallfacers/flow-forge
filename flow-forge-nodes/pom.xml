@@ -24,6 +24,12 @@
             <artifactId>flow-forge-core-model</artifactId>
         </dependency>
 
+        <!-- Engine for VariableResolver -->
+        <dependency>
+            <groupId>com.workflow</groupId>
+            <artifactId>flow-forge-engine</artifactId>
+        </dependency>
+
         <!-- Spring Context -->
         <dependency>
             <groupId>org.springframework</groupId>
@@ -41,10 +47,16 @@
             <type>pom</type>
         </dependency>
 
-        <!-- Spring Web for HTTP client -->
+        <!-- Spring WebFlux for WebClient -->
         <dependency>
             <groupId>org.springframework</groupId>
-            <artifactId>spring-web</artifactId>
+            <artifactId>spring-webflux</artifactId>
+        </dependency>
+
+        <!-- Reactor Netty for WebClient -->
+        <dependency>
+            <groupId>io.projectreactor.netty</groupId>
+            <artifactId>reactor-netty</artifactId>
         </dependency>
 
         <!-- SpEL for condition evaluation -->
@@ -87,6 +99,16 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-test</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
