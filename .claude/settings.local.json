@@ -5,7 +5,11 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git rev-parse:*)",
-      "Bash(mvn:*)"
+      "Bash(mvn:*)",
+      "Bash(java:*)",
+      "Bash(git restore:*)",
+      "Bash(git stash:*)",
+      "Bash(find:*)"
     ],
     "language": "zh-CN"
   },
