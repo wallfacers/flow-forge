@@ -7,7 +7,6 @@ import com.workflow.model.Node;
 import com.workflow.model.NodeResult;
 import com.workflow.model.NodeType;
 import com.workflow.node.script.ScriptNodeExecutor;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -43,11 +42,6 @@ class ScriptNodeExecutorTest {
     void setUp() {
         variableResolver = new VariableResolver();
         executor = new ScriptNodeExecutor(variableResolver);
-    }
-
-    @AfterEach
-    void tearDown() {
-        ScriptNodeExecutor.cleanupAll();
     }
 
     @Test
