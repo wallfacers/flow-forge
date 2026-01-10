@@ -24,12 +24,6 @@
             <artifactId>flow-forge-core-model</artifactId>
         </dependency>
 
-        <!-- Engine for VariableResolver -->
-        <dependency>
-            <groupId>com.workflow</groupId>
-            <artifactId>flow-forge-engine</artifactId>
-        </dependency>
-
         <!-- Spring Context -->
         <dependency>
             <groupId>org.springframework</groupId>

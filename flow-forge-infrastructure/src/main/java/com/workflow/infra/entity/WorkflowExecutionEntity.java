@@ -3,8 +3,6 @@ package com.workflow.infra.entity;
 import com.workflow.model.ExecutionStatus;
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.annotations.SqlGroup;
-import org.hibernate.annotations.Type;
 import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
@@ -373,9 +371,10 @@ public class WorkflowExecutionEntity extends BaseEntity {
      * 检查是否已完成（成功或失败）
      */
     public boolean isFinished() {
-        return status == ExecutionStatus.COMPLETED
+        return status == ExecutionStatus.SUCCESS
                 || status == ExecutionStatus.FAILED
-                || status == ExecutionStatus.CANCELLED;
+                || status == ExecutionStatus.CANCELLED
+                || status == ExecutionStatus.TIMEOUT;
     }
 
     /**

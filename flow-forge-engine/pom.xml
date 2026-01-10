@@ -24,6 +24,18 @@
             <artifactId>flow-forge-core-model</artifactId>
         </dependency>
 
+        <!-- Nodes (NodeExecutorFactory) -->
+        <dependency>
+            <groupId>com.workflow</groupId>
+            <artifactId>flow-forge-nodes</artifactId>
+        </dependency>
+
+        <!-- Infrastructure (CheckpointService, Repositories) -->
+        <dependency>
+            <groupId>com.workflow</groupId>
+            <artifactId>flow-forge-infrastructure</artifactId>
+        </dependency>
+
         <!-- Spring Context for dependency injection -->
         <dependency>
             <groupId>org.springframework</groupId>
@@ -67,4 +79,22 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

@@ -184,9 +184,9 @@ public class NodeExecutionLogEntity extends BaseEntity {
          */
         RUNNING,
         /**
-         * 执行完成
+         * 执行成功
          */
-        COMPLETED,
+        SUCCESS,
         /**
          * 执行失败
          */
@@ -389,7 +389,7 @@ public class NodeExecutionLogEntity extends BaseEntity {
      * 检查是否已完成
      */
     public boolean isFinished() {
-        return status == NodeExecutionStatus.COMPLETED
+        return status == NodeExecutionStatus.SUCCESS
                 || status == NodeExecutionStatus.FAILED
                 || status == NodeExecutionStatus.SKIPPED;
     }
@@ -427,7 +427,7 @@ public class NodeExecutionLogEntity extends BaseEntity {
      * 标记为完成
      */
     public void markAsCompleted() {
-        this.status = NodeExecutionStatus.COMPLETED;
+        this.status = NodeExecutionStatus.SUCCESS;
         this.completedAt = Instant.now();
         if (startedAt != null) {
             this.durationMs = completedAt.toEpochMilli() - startedAt.toEpochMilli();

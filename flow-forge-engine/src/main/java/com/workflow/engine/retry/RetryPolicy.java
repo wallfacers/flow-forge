@@ -6,7 +6,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import java.time.Duration;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
@@ -244,7 +243,7 @@ public class RetryPolicy {
         }
 
         // 检查节点配置的重试次数
-        if (node.getRetryCount() != null && attempt >= node.getRetryCount()) {
+        if (node.getRetryCount() > 0 && attempt >= node.getRetryCount()) {
             return RetryDecision.stop(
                     String.format("Node retry count exceeded: %d >= %d", attempt, node.getRetryCount()));
         }

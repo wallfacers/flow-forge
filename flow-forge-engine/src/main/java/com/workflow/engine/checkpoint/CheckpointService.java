@@ -1,6 +1,5 @@
-package com.workflow.infra.checkpoint;
+package com.workflow.engine.checkpoint;
 
-import com.workflow.context.VariableResolver;
 import com.workflow.infra.entity.NodeExecutionLogEntity;
 import com.workflow.infra.entity.WorkflowExecutionEntity;
 import com.workflow.infra.repository.NodeExecutionLogRepository;
@@ -9,7 +8,6 @@ import com.workflow.model.ExecutionContext;
 import com.workflow.model.ExecutionStatus;
 import com.workflow.model.NodeResult;
 import com.workflow.model.WorkflowDefinition;
-import com.workflow.node.NodeExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -19,8 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 /**
  * 检查点服务。
@@ -152,12 +148,12 @@ public class CheckpointService {
 
         if (log != null) {
             if (result.isSuccess()) {
-                log.setStatus(NodeExecutionLogEntity.NodeExecutionStatus.COMPLETED);
+                log.setStatus(NodeExecutionLogEntity.NodeExecutionStatus.SUCCESS);
                 log.setOutputData(result.getOutput());
             } else {
                 log.setStatus(NodeExecutionLogEntity.NodeExecutionStatus.FAILED);
                 log.setErrorMessage(result.getErrorMessage());
-                log.setErrorStackTrace(result.getErrorStackTrace());
+                log.setErrorStackTrace(result.getStackTrace());
             }
             log.setCompletedAt(Instant.now());
             if (log.getStartedAt() != null) {
@@ -219,7 +215,7 @@ public class CheckpointService {
             execution.setErrorMessage(errorMessage);
         }
 
-        if (status == ExecutionStatus.COMPLETED || status == ExecutionStatus.FAILED
+        if (status == ExecutionStatus.SUCCESS || status == ExecutionStatus.FAILED
                 || status == ExecutionStatus.CANCELLED) {
             execution.setCompletedAt(Instant.now());
             if (execution.getStartedAt() != null) {
@@ -281,7 +277,7 @@ public class CheckpointService {
         Map<String, Map<String, String>> nodeResultRefs = new HashMap<>();
         for (Map.Entry<String, NodeResult> entry : context.getNodeResults().entrySet()) {
             Map<String, String> ref = new HashMap<>();
-            ref.put("status", entry.getValue().getExecutionStatus().toString());
+            ref.put("status", entry.getValue().getStatus().toString());
             ref.put("hasOutput", entry.getValue().getOutput() != null ? "true" : "false");
             if (entry.getValue().getErrorMessage() != null) {
                 ref.put("error", entry.getValue().getErrorMessage());

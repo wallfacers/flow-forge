@@ -53,14 +53,26 @@ public interface NodeExecutionLogRepository extends JpaRepository<NodeExecutionL
     /**
      * 查找失败的节点日志（未删除）
      */
-    List<NodeExecutionLogEntity> findByExecutionIdAndStatusAndDeletedAtIsNullOrderByStartedAtDesc(
-            UUID executionId, NodeExecutionStatus.FAILED status);
+    @Query("""
+            SELECT n FROM NodeExecutionLogEntity n
+            WHERE n.executionId = :executionId
+            AND n.deletedAt IS NULL
+            AND n.status = 'FAILED'
+            ORDER BY n.startedAt DESC
+            """)
+    List<NodeExecutionLogEntity> findFailedNodes(@Param("executionId") UUID executionId);
 
     /**
      * 查找失败的节点日志（未删除，使用执行ID字符串）
      */
-    List<NodeExecutionLogEntity> findByExecutionIdStrAndStatusAndDeletedAtIsNullOrderByStartedAtDesc(
-            String executionIdStr, NodeExecutionStatus.FAILED status);
+    @Query("""
+            SELECT n FROM NodeExecutionLogEntity n
+            WHERE n.executionIdStr = :executionIdStr
+            AND n.deletedAt IS NULL
+            AND n.status = 'FAILED'
+            ORDER BY n.startedAt DESC
+            """)
+    List<NodeExecutionLogEntity> findFailedNodesByExecutionIdStr(@Param("executionIdStr") String executionIdStr);
 
     /**
      * 统计执行ID下各状态的节点数量
@@ -115,7 +127,7 @@ public interface NodeExecutionLogRepository extends JpaRepository<NodeExecutionL
             SELECT n.nodeId FROM NodeExecutionLogEntity n
             WHERE n.executionId = :executionId
             AND n.deletedAt IS NULL
-            AND n.status = 'COMPLETED'
+            AND n.status = 'SUCCESS'
             """)
     List<String> findCompletedNodeIds(@Param("executionId") UUID executionId);
 
@@ -126,7 +138,7 @@ public interface NodeExecutionLogRepository extends JpaRepository<NodeExecutionL
             SELECT n.nodeId FROM NodeExecutionLogEntity n
             WHERE n.executionIdStr = :executionIdStr
             AND n.deletedAt IS NULL
-            AND n.status = 'COMPLETED'
+            AND n.status = 'SUCCESS'
             """)
     List<String> findCompletedNodeIdsByExecutionIdStr(@Param("executionIdStr") String executionIdStr);
 

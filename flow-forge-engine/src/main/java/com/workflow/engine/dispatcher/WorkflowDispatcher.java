@@ -1,8 +1,8 @@
 package com.workflow.engine.dispatcher;
 
 import com.workflow.context.VariableResolver;
-import com.workflow.infra.checkpoint.CheckpointRecoveryService;
-import com.workflow.infra.checkpoint.CheckpointService;
+import com.workflow.engine.checkpoint.CheckpointRecoveryService;
+import com.workflow.engine.checkpoint.CheckpointService;
 import com.workflow.engine.retry.RetryPolicy;
 import com.workflow.engine.scheduler.InDegreeScheduler;
 import com.workflow.model.*;
@@ -17,7 +17,6 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
 /**
@@ -142,7 +141,7 @@ public class WorkflowDispatcher {
 
         // 更新最终状态
         if (result.isSuccess()) {
-            checkpointService.updateExecutionStatus(executionId, ExecutionStatus.COMPLETED, null);
+            checkpointService.updateExecutionStatus(executionId, ExecutionStatus.SUCCESS, null);
             checkpointService.setOutputData(executionId, result.getOutputData());
         } else {
             checkpointService.updateExecutionStatus(executionId, ExecutionStatus.FAILED, result.getErrorMessage());
@@ -195,7 +194,7 @@ public class WorkflowDispatcher {
 
                 // 更新最终状态
                 if (result.isSuccess()) {
-                    checkpointService.updateExecutionStatus(executionId, ExecutionStatus.COMPLETED, null);
+                    checkpointService.updateExecutionStatus(executionId, ExecutionStatus.SUCCESS, null);
                     checkpointService.setOutputData(executionId, result.getOutputData());
                 } else {
                     checkpointService.updateExecutionStatus(executionId, ExecutionStatus.FAILED, result.getErrorMessage());
@@ -254,7 +253,7 @@ public class WorkflowDispatcher {
 
         // 更新最终状态
         if (result.isSuccess()) {
-            checkpointService.updateExecutionStatus(newExecutionId, ExecutionStatus.COMPLETED, null);
+            checkpointService.updateExecutionStatus(newExecutionId, ExecutionStatus.SUCCESS, null);
             checkpointService.setOutputData(newExecutionId, result.getOutputData());
         } else {
             checkpointService.updateExecutionStatus(newExecutionId, ExecutionStatus.FAILED, result.getErrorMessage());
@@ -542,7 +541,7 @@ public class WorkflowDispatcher {
 
                 // 递归执行后继节点
                 for (String successorId : newReadyNodeIds) {
-                    Node successor = definition.getNodeById(successorId);
+                    Node successor = definition.getNode(successorId);
                     if (successor != null) {
                         executeNodeAsync(successor, definition, context, inDegreeMap, executionId);
                     }
@@ -592,7 +591,7 @@ public class WorkflowDispatcher {
         // 添加所有节点结果的引用
         Map<String, String> nodeResults = new HashMap<>();
         for (Map.Entry<String, NodeResult> entry : context.getNodeResults().entrySet()) {
-            String status = entry.getValue().getExecutionStatus().toString();
+            String status = entry.getValue().getStatus().toString();
             String hasOutput = entry.getValue().getOutput() != null ? "true" : "false";
             nodeResults.put(entry.getKey(), status + " (output: " + hasOutput + ")");
         }

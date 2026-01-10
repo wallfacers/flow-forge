@@ -1,11 +1,11 @@
-package com.workflow.infra.checkpoint;
+package com.workflow.engine.checkpoint;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.workflow.dsl.WorkflowDslParser;
+import com.workflow.engine.scheduler.InDegreeScheduler;
 import com.workflow.infra.entity.WorkflowExecutionEntity;
 import com.workflow.infra.repository.WorkflowExecutionRepository;
 import com.workflow.model.*;
-import com.workflow.engine.scheduler.InDegreeScheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -13,9 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 /**
  * 检查点恢复服务。
@@ -203,7 +201,7 @@ public class CheckpointRecoveryService {
      */
     private ExecutionContext restoreExecutionContext(WorkflowExecutionEntity entity,
                                                     WorkflowDefinition definition) {
-        ExecutionContext.Builder builder = ExecutionContext.builder()
+        var builder = ExecutionContext.builder()
                 .executionId(entity.getExecutionId())
                 .workflowId(entity.getWorkflowId())
                 .tenantId(entity.getTenantId())
@@ -231,7 +229,9 @@ public class CheckpointRecoveryService {
                 Map<String, String> ref = entry.getValue();
 
                 ExecutionStatus status = ExecutionStatus.valueOf(ref.get("status"));
-                NodeResult.Builder resultBuilder = NodeResult.builder(nodeId, status);
+                var resultBuilder = NodeResult.builder()
+                        .nodeId(nodeId)
+                        .status(status);
 
                 if ("true".equals(ref.get("hasOutput"))) {
                     // 这里只标记有输出，实际输出数据可以从节点日志中恢复

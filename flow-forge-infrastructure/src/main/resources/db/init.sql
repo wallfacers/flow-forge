@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS workflow_execution_history (
     workflow_definition     JSONB NOT NULL,
     -- 租户隔离
     tenant_id               VARCHAR(64) NOT NULL,
-    -- 执行状态: RUNNING, COMPLETED, FAILED, CANCELLED, WAITING
+    -- 执行状态: RUNNING, SUCCESS, FAILED, CANCELLED, WAITING
     status                  VARCHAR(20) NOT NULL,
     -- 执行结果
     error_message           TEXT,
@@ -69,7 +69,7 @@ COMMENT ON COLUMN workflow_execution_history.workflow_id IS '工作流定义ID';
 COMMENT ON COLUMN workflow_execution_history.workflow_name IS '工作流名称';
 COMMENT ON COLUMN workflow_execution_history.workflow_definition IS '工作流定义JSON (包含节点和边)';
 COMMENT ON COLUMN workflow_execution_history.tenant_id IS '租户ID (多租户隔离)';
-COMMENT ON COLUMN workflow_execution_history.status IS '执行状态: RUNNING, COMPLETED, FAILED, CANCELLED, WAITING';
+COMMENT ON COLUMN workflow_execution_history.status IS '执行状态: RUNNING, SUCCESS, FAILED, CANCELLED, WAITING';
 COMMENT ON COLUMN workflow_execution_history.error_message IS '错误消息 (失败时记录)';
 COMMENT ON COLUMN workflow_execution_history.input_data IS '输入数据JSON';
 COMMENT ON COLUMN workflow_execution_history.output_data IS '输出数据JSON';
@@ -103,7 +103,7 @@ CREATE TABLE IF NOT EXISTS node_execution_log (
     node_id                 VARCHAR(64) NOT NULL,
     node_name               VARCHAR(255) NOT NULL,
     node_type               VARCHAR(20) NOT NULL,
-    -- 执行状态: PENDING, RUNNING, COMPLETED, FAILED, SKIPPED, WAITING
+    -- 执行状态: PENDING, RUNNING, SUCCESS, FAILED, SKIPPED, WAITING
     status                  VARCHAR(20) NOT NULL,
     -- 执行结果
     output_data             JSONB,
@@ -154,7 +154,7 @@ COMMENT ON COLUMN node_execution_log.execution_id_str IS '执行实例ID字符�
 COMMENT ON COLUMN node_execution_log.node_id IS '节点ID';
 COMMENT ON COLUMN node_execution_log.node_name IS '节点名称';
 COMMENT ON COLUMN node_execution_log.node_type IS '节点类型: http, log, script, if, merge, webhook, wait, start, end';
-COMMENT ON COLUMN node_execution_log.status IS '执行状态: PENDING, RUNNING, COMPLETED, FAILED, SKIPPED, WAITING';
+COMMENT ON COLUMN node_execution_log.status IS '执行状态: PENDING, RUNNING, SUCCESS, FAILED, SKIPPED, WAITING';
 COMMENT ON COLUMN node_execution_log.output_data IS '输出数据JSON';
 COMMENT ON COLUMN node_execution_log.error_message IS '错误消息';
 COMMENT ON COLUMN node_execution_log.error_stack_trace IS '错误堆栈';
