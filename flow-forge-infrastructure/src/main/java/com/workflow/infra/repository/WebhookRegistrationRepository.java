@@ -2,6 +2,7 @@ package com.workflow.infra.repository;
 
 import com.workflow.infra.entity.WebhookRegistrationEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -58,12 +59,14 @@ public interface WebhookRegistrationRepository extends JpaRepository<WebhookRegi
     /**
      * 软删除：根据 ID 标记为已删除
      */
+    @Modifying
     @Query("UPDATE WebhookRegistrationEntity w SET w.deletedAt = :deletedAt WHERE w.id = :id")
     int softDeleteById(@Param("id") UUID id, @Param("deletedAt") java.time.Instant deletedAt);
 
     /**
      * 软删除：根据租户ID和工作流ID标记为已删除
      */
+    @Modifying
     @Query("UPDATE WebhookRegistrationEntity w SET w.deletedAt = :deletedAt " +
            "WHERE w.tenantId = :tenantId AND w.workflowId = :workflowId AND w.deletedAt IS NULL")
     int softDeleteByTenantAndWorkflow(@Param("tenantId") String tenantId,
@@ -79,6 +82,7 @@ public interface WebhookRegistrationRepository extends JpaRepository<WebhookRegi
     /**
      * 清理过期的已删除记录
      */
+    @Modifying
     @Query("DELETE FROM WebhookRegistrationEntity w WHERE w.deletedAt IS NOT NULL AND w.deletedAt < :beforeDate")
     int purgeDeletedBefore(@Param("beforeDate") java.time.Instant beforeDate);
 

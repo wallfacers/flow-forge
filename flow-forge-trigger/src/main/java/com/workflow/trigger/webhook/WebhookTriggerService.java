@@ -1,6 +1,7 @@
 package com.workflow.trigger.webhook;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.workflow.exception.WorkflowValidationException;
 import com.workflow.infra.entity.WebhookRegistrationEntity;
 import com.workflow.infra.repository.WebhookRegistrationRepository;
 import com.workflow.trigger.dto.WebhookRegistrationRequest;
@@ -11,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -29,13 +31,14 @@ public class WebhookTriggerService {
 
     private final WebhookRegistrationRepository webhookRepository;
     private final ObjectMapper objectMapper;
-
-    private static final String BASE_URL = "/api/webhook";
+    private final String baseUrl;
 
     public WebhookTriggerService(WebhookRegistrationRepository webhookRepository,
-                                  ObjectMapper objectMapper) {
+                                  ObjectMapper objectMapper,
+                                  @Value("${webhook.base-url:/api/webhook}") String baseUrl) {
         this.webhookRepository = webhookRepository;
         this.objectMapper = objectMapper;
+        this.baseUrl = baseUrl;
     }
 
     /**
@@ -43,14 +46,17 @@ public class WebhookTriggerService {
      */
     @Transactional
     public WebhookRegistrationResponse registerWebhook(String tenantId, WebhookRegistrationRequest request) {
+        // 验证 Webhook 路径
+        validateWebhookPath(request.getWebhookPath());
+
         // 检查路径是否已存在
         if (webhookRepository.existsByWebhookPathAndDeletedAtIsNull(request.getWebhookPath())) {
-            throw new IllegalArgumentException("Webhook路径已存在: " + request.getWebhookPath());
+            throw new WorkflowValidationException("Webhook路径已存在: " + request.getWebhookPath());
         }
 
         // 检查工作流是否已注册
         if (webhookRepository.existsByTenantIdAndWorkflowIdAndDeletedAtIsNull(tenantId, request.getWorkflowId())) {
-            throw new IllegalArgumentException("工作流已注册Webhook: " + request.getWorkflowId());
+            throw new WorkflowValidationException("工作流已注册Webhook: " + request.getWorkflowId());
         }
 
         WebhookRegistrationEntity entity = new WebhookRegistrationEntity();
@@ -70,7 +76,7 @@ public class WebhookTriggerService {
         log.info("Registered webhook: tenantId={}, workflowId={}, path={}",
                 tenantId, request.getWorkflowId(), request.getWebhookPath());
 
-        return WebhookRegistrationResponse.fromEntity(entity, BASE_URL);
+        return WebhookRegistrationResponse.fromEntity(entity, baseUrl);
     }
 
     /**
@@ -79,17 +85,22 @@ public class WebhookTriggerService {
     @Transactional
     public WebhookRegistrationResponse updateWebhook(String tenantId, UUID id, WebhookRegistrationRequest request) {
         WebhookRegistrationEntity entity = webhookRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Webhook不存在: " + id));
+                .orElseThrow(() -> new WorkflowValidationException("Webhook不存在: " + id));
 
         // 验证租户
         if (!entity.getTenantId().equals(tenantId)) {
-            throw new IllegalArgumentException("无权操作此Webhook");
+            throw new WorkflowValidationException("无权操作此Webhook");
+        }
+
+        // 验证 Webhook 路径（如果修改了路径）
+        if (!entity.getWebhookPath().equals(request.getWebhookPath())) {
+            validateWebhookPath(request.getWebhookPath());
         }
 
         // 检查路径是否被其他记录占用
         if (!entity.getWebhookPath().equals(request.getWebhookPath())) {
             if (webhookRepository.existsByWebhookPathAndDeletedAtIsNull(request.getWebhookPath())) {
-                throw new IllegalArgumentException("Webhook路径已存在: " + request.getWebhookPath());
+                throw new WorkflowValidationException("Webhook路径已存在: " + request.getWebhookPath());
             }
             entity.setWebhookPath(request.getWebhookPath());
         }
@@ -106,7 +117,7 @@ public class WebhookTriggerService {
         log.info("Updated webhook: id={}, tenantId={}, workflowId={}",
                 id, tenantId, request.getWorkflowId());
 
-        return WebhookRegistrationResponse.fromEntity(entity, BASE_URL);
+        return WebhookRegistrationResponse.fromEntity(entity, baseUrl);
     }
 
     /**
@@ -115,10 +126,10 @@ public class WebhookTriggerService {
     @Transactional
     public void deleteWebhook(String tenantId, UUID id) {
         WebhookRegistrationEntity entity = webhookRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Webhook不存在: " + id));
+                .orElseThrow(() -> new WorkflowValidationException("Webhook不存在: " + id));
 
         if (!entity.getTenantId().equals(tenantId)) {
-            throw new IllegalArgumentException("无权操作此Webhook");
+            throw new WorkflowValidationException("无权操作此Webhook");
         }
 
         entity.markAsDeleted();
@@ -131,13 +142,13 @@ public class WebhookTriggerService {
      */
     public WebhookRegistrationResponse getWebhook(String tenantId, UUID id) {
         WebhookRegistrationEntity entity = webhookRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Webhook不存在: " + id));
+                .orElseThrow(() -> new WorkflowValidationException("Webhook不存在: " + id));
 
         if (!entity.getTenantId().equals(tenantId)) {
-            throw new IllegalArgumentException("无权访问此Webhook");
+            throw new WorkflowValidationException("无权访问此Webhook");
         }
 
-        return WebhookRegistrationResponse.fromEntity(entity, BASE_URL);
+        return WebhookRegistrationResponse.fromEntity(entity, baseUrl);
     }
 
     /**
@@ -153,7 +164,7 @@ public class WebhookTriggerService {
     public java.util.List<WebhookRegistrationResponse> listWebhooks(String tenantId) {
         return webhookRepository.findByTenantIdAndDeletedAtIsNullOrderByCreatedAtDesc(tenantId)
                 .stream()
-                .map(entity -> WebhookRegistrationResponse.fromEntity(entity, BASE_URL))
+                .map(entity -> WebhookRegistrationResponse.fromEntity(entity, baseUrl))
                 .toList();
     }
 
@@ -179,7 +190,7 @@ public class WebhookTriggerService {
         // 验证签名（如果配置了密钥）
         if (webhook.getSecretKey() != null && !webhook.getSecretKey().isEmpty()) {
             String expectedSignature = calculateSignature(request, webhook.getSecretKey());
-            if (!expectedSignature.equals(request.getSignature())) {
+            if (!constantTimeEquals(expectedSignature, request.getSignature())) {
                 log.warn("Invalid signature for webhook: {}", webhookPath);
                 webhook.incrementTrigger(false);
                 webhookRepository.save(webhook);
@@ -241,10 +252,10 @@ public class WebhookTriggerService {
     @Transactional
     public void toggleWebhook(String tenantId, UUID id, boolean enabled) {
         WebhookRegistrationEntity entity = webhookRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Webhook不存在: " + id));
+                .orElseThrow(() -> new WorkflowValidationException("Webhook不存在: " + id));
 
         if (!entity.getTenantId().equals(tenantId)) {
-            throw new IllegalArgumentException("无权操作此Webhook");
+            throw new WorkflowValidationException("无权操作此Webhook");
         }
 
         entity.setEnabled(enabled);
@@ -258,14 +269,50 @@ public class WebhookTriggerService {
     @Transactional
     public void resetStatistics(String tenantId, UUID id) {
         WebhookRegistrationEntity entity = webhookRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Webhook不存在: " + id));
+                .orElseThrow(() -> new WorkflowValidationException("Webhook不存在: " + id));
 
         if (!entity.getTenantId().equals(tenantId)) {
-            throw new IllegalArgumentException("无权操作此Webhook");
+            throw new WorkflowValidationException("无权操作此Webhook");
         }
 
         entity.resetStatistics();
         webhookRepository.save(entity);
         log.info("Reset statistics for webhook: id={}, tenantId={}", id, tenantId);
+    }
+
+    /**
+     * 验证 Webhook 路径
+     */
+    private void validateWebhookPath(String path) {
+        if (path == null || path.isEmpty()) {
+            throw new WorkflowValidationException("Webhook路径不能为空");
+        }
+        // 防止路径遍历攻击
+        if (path.contains("..") || path.contains("/") || path.contains("\\")) {
+            throw new WorkflowValidationException("Webhook路径包含非法字符");
+        }
+        // 只允许字母、数字、下划线、连字符
+        if (!path.matches("^[a-zA-Z0-9_-]+$")) {
+            throw new WorkflowValidationException("Webhook路径只能包含字母、数字、下划线和连字符");
+        }
+        if (path.length() > 100) {
+            throw new WorkflowValidationException("Webhook路径长度不能超过100");
+        }
+    }
+
+    /**
+     * 常量时间比较，防止时序攻击
+     */
+    private boolean constantTimeEquals(String a, String b) {
+        if (a == null || b == null || a.length() != b.length()) {
+            return false;
+        }
+        byte[] aBytes = a.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] bBytes = b.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        int result = 0;
+        for (int i = 0; i < aBytes.length; i++) {
+            result |= aBytes[i] ^ bBytes[i];
+        }
+        return result == 0;
     }
 }

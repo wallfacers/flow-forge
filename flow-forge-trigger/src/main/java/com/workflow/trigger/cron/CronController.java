@@ -1,5 +1,7 @@
 package com.workflow.trigger.cron;
 
+import com.workflow.exception.WorkflowException;
+import com.workflow.exception.WorkflowValidationException;
 import com.workflow.trigger.dto.CronTriggerRequest;
 import com.workflow.trigger.dto.CronTriggerResponse;
 import jakarta.validation.Valid;
@@ -40,9 +42,12 @@ public class CronController {
         try {
             CronTriggerResponse response = cronTriggerService.createCronTrigger(tenantId, request);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (IllegalArgumentException e) {
-            log.error("Failed to create cron trigger: {}", e.getMessage());
+        } catch (WorkflowValidationException e) {
+            log.warn("Validation failed: {}", e.getMessage());
             return ResponseEntity.badRequest().build();
+        } catch (WorkflowException e) {
+            log.error("Failed to create cron trigger: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
@@ -58,8 +63,8 @@ public class CronController {
         try {
             CronTriggerResponse response = cronTriggerService.updateCronTrigger(tenantId, id, request);
             return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException e) {
-            log.error("Failed to update cron trigger: {}", e.getMessage());
+        } catch (WorkflowValidationException e) {
+            log.warn("Validation failed: {}", e.getMessage());
             return ResponseEntity.notFound().build();
         }
     }
@@ -75,8 +80,8 @@ public class CronController {
         try {
             cronTriggerService.deleteCronTrigger(tenantId, id);
             return ResponseEntity.noContent().build();
-        } catch (IllegalArgumentException e) {
-            log.error("Failed to delete cron trigger: {}", e.getMessage());
+        } catch (WorkflowValidationException e) {
+            log.warn("Validation failed: {}", e.getMessage());
             return ResponseEntity.notFound().build();
         }
     }
@@ -92,8 +97,8 @@ public class CronController {
         try {
             CronTriggerResponse response = cronTriggerService.getCronTrigger(tenantId, id);
             return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException e) {
-            log.error("Failed to get cron trigger: {}", e.getMessage());
+        } catch (WorkflowValidationException e) {
+            log.warn("Validation failed: {}", e.getMessage());
             return ResponseEntity.notFound().build();
         }
     }
@@ -120,7 +125,7 @@ public class CronController {
         try {
             cronTriggerService.toggleCronTrigger(tenantId, id, true);
             return ResponseEntity.ok().build();
-        } catch (IllegalArgumentException e) {
+        } catch (WorkflowValidationException e) {
             return ResponseEntity.notFound().build();
         }
     }
@@ -136,7 +141,7 @@ public class CronController {
         try {
             cronTriggerService.toggleCronTrigger(tenantId, id, false);
             return ResponseEntity.ok().build();
-        } catch (IllegalArgumentException e) {
+        } catch (WorkflowValidationException e) {
             return ResponseEntity.notFound().build();
         }
     }
@@ -152,7 +157,7 @@ public class CronController {
         try {
             cronTriggerService.resetStatistics(tenantId, id);
             return ResponseEntity.ok().build();
-        } catch (IllegalArgumentException e) {
+        } catch (WorkflowValidationException e) {
             return ResponseEntity.notFound().build();
         }
     }

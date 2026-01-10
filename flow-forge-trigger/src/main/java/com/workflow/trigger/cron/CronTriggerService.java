@@ -1,5 +1,7 @@
 package com.workflow.trigger.cron;
 
+import com.workflow.exception.WorkflowException;
+import com.workflow.exception.WorkflowValidationException;
 import com.workflow.infra.entity.CronTriggerEntity;
 import com.workflow.infra.repository.CronTriggerRepository;
 import com.workflow.trigger.config.PowerJobConfig;
@@ -40,9 +42,12 @@ public class CronTriggerService {
      */
     @Transactional
     public CronTriggerResponse createCronTrigger(String tenantId, CronTriggerRequest request) {
+        // 验证 Cron 表达式
+        validateCronExpression(request.getCronExpression());
+
         // 检查工作流是否已存在 Cron 触发器
         if (cronTriggerRepository.existsByTenantIdAndWorkflowIdAndDeletedAtIsNull(tenantId, request.getWorkflowId())) {
-            throw new IllegalArgumentException("工作流已存在Cron触发器: " + request.getWorkflowId());
+            throw new WorkflowValidationException("工作流已存在Cron触发器: " + request.getWorkflowId());
         }
 
         CronTriggerEntity entity = new CronTriggerEntity();
@@ -77,11 +82,14 @@ public class CronTriggerService {
      */
     @Transactional
     public CronTriggerResponse updateCronTrigger(String tenantId, UUID id, CronTriggerRequest request) {
+        // 验证 Cron 表达式
+        validateCronExpression(request.getCronExpression());
+
         CronTriggerEntity entity = cronTriggerRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Cron触发器不存在: " + id));
+                .orElseThrow(() -> new WorkflowValidationException("Cron触发器不存在: " + id));
 
         if (!entity.getTenantId().equals(tenantId)) {
-            throw new IllegalArgumentException("无权操作此Cron触发器");
+            throw new WorkflowValidationException("无权操作此Cron触发器");
         }
 
         // 如果 Cron 表达式变化，需要重新调度
@@ -116,10 +124,10 @@ public class CronTriggerService {
     @Transactional
     public void deleteCronTrigger(String tenantId, UUID id) {
         CronTriggerEntity entity = cronTriggerRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Cron触发器不存在: " + id));
+                .orElseThrow(() -> new WorkflowValidationException("Cron触发器不存在: " + id));
 
         if (!entity.getTenantId().equals(tenantId)) {
-            throw new IllegalArgumentException("无权操作此Cron触发器");
+            throw new WorkflowValidationException("无权操作此Cron触发器");
         }
 
         // 从 PowerJob 删除
@@ -137,10 +145,10 @@ public class CronTriggerService {
      */
     public CronTriggerResponse getCronTrigger(String tenantId, UUID id) {
         CronTriggerEntity entity = cronTriggerRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Cron触发器不存在: " + id));
+                .orElseThrow(() -> new WorkflowValidationException("Cron触发器不存在: " + id));
 
         if (!entity.getTenantId().equals(tenantId)) {
-            throw new IllegalArgumentException("无权访问此Cron触发器");
+            throw new WorkflowValidationException("无权访问此Cron触发器");
         }
 
         return CronTriggerResponse.fromEntity(entity);
@@ -162,10 +170,10 @@ public class CronTriggerService {
     @Transactional
     public void toggleCronTrigger(String tenantId, UUID id, boolean enabled) {
         CronTriggerEntity entity = cronTriggerRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Cron触发器不存在: " + id));
+                .orElseThrow(() -> new WorkflowValidationException("Cron触发器不存在: " + id));
 
         if (!entity.getTenantId().equals(tenantId)) {
-            throw new IllegalArgumentException("无权操作此Cron触发器");
+            throw new WorkflowValidationException("无权操作此Cron触发器");
         }
 
         entity.setEnabled(enabled);
@@ -187,10 +195,10 @@ public class CronTriggerService {
     @Transactional
     public void resetStatistics(String tenantId, UUID id) {
         CronTriggerEntity entity = cronTriggerRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Cron触发器不存在: " + id));
+                .orElseThrow(() -> new WorkflowValidationException("Cron触发器不存在: " + id));
 
         if (!entity.getTenantId().equals(tenantId)) {
-            throw new IllegalArgumentException("无权操作此Cron触发器");
+            throw new WorkflowValidationException("无权操作此Cron触发器");
         }
 
         entity.resetStatistics();
@@ -276,5 +284,20 @@ public class CronTriggerService {
         log.info("Stopping cron trigger on PowerJob: powerjobJobId={}", powerjobJobId);
         // TODO: 实际的 PowerJob 停止逻辑
         // powerJobClient.disableJob(powerjobJobId);
+    }
+
+    /**
+     * 验证 Cron 表达式
+     */
+    private void validateCronExpression(String cronExpression) {
+        if (cronExpression == null || cronExpression.trim().isEmpty()) {
+            throw new WorkflowValidationException("Cron表达式不能为空");
+        }
+        try {
+            // 使用 Spring 的 CronExpression 验证
+            org.springframework.scheduling.support.CronExpression.parse(cronExpression);
+        } catch (IllegalArgumentException e) {
+            throw new WorkflowValidationException("无效的Cron表达式: " + cronExpression, e);
+        }
     }
 }

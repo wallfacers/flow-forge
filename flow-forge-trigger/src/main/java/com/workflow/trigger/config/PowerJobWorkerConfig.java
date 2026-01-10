@@ -14,13 +14,13 @@ import tech.powerjob.worker.PowerJobWorker;
  */
 @Configuration
 @ConditionalOnProperty(prefix = "powerjob.worker", name = "enabled", havingValue = "true")
-public class PowerJobWorkerProperties {
+public class PowerJobWorkerConfig {
 
-    private static final Logger log = LoggerFactory.getLogger(PowerJobWorkerProperties.class);
+    private static final Logger log = LoggerFactory.getLogger(PowerJobWorkerConfig.class);
 
     private final PowerJobConfig powerJobConfig;
 
-    public PowerJobWorkerProperties(PowerJobConfig powerJobConfig) {
+    public PowerJobWorkerConfig(PowerJobConfig powerJobConfig) {
         this.powerJobConfig = powerJobConfig;
     }
 

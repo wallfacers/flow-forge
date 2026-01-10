@@ -3,8 +3,9 @@ package com.workflow.infra.entity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -26,7 +27,8 @@ import java.util.Map;
         @Index(name = "idx_webhook_deleted_at", columnList = "deleted_at")
 })
 @EntityListeners(AuditingEntityListener.class)
-@Data
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -133,5 +135,24 @@ public class WebhookRegistrationEntity extends BaseEntity {
         this.failedTriggers = 0L;
         this.lastTriggeredAt = null;
         this.lastTriggerStatus = null;
+    }
+
+    /**
+     * 基于ID的equals方法（JPA实体标准做法）
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof WebhookRegistrationEntity)) return false;
+        WebhookRegistrationEntity that = (WebhookRegistrationEntity) o;
+        return getId() != null && getId().equals(that.getId());
+    }
+
+    /**
+     * 基于类的hashCode（JPA实体标准做法）
+     */
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
     }
 }

@@ -1,5 +1,7 @@
 package com.workflow.trigger.webhook;
 
+import com.workflow.exception.WorkflowException;
+import com.workflow.exception.WorkflowValidationException;
 import com.workflow.trigger.dto.WebhookRegistrationRequest;
 import com.workflow.trigger.dto.WebhookRegistrationResponse;
 import com.workflow.trigger.dto.WebhookRequest;
@@ -43,9 +45,12 @@ public class WebhookController {
         try {
             WebhookRegistrationResponse response = webhookTriggerService.registerWebhook(tenantId, request);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (IllegalArgumentException e) {
-            log.error("Failed to register webhook: {}", e.getMessage());
+        } catch (WorkflowValidationException e) {
+            log.warn("Validation failed: {}", e.getMessage());
             return ResponseEntity.badRequest().build();
+        } catch (WorkflowException e) {
+            log.error("Failed to register webhook: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
@@ -61,8 +66,8 @@ public class WebhookController {
         try {
             WebhookRegistrationResponse response = webhookTriggerService.updateWebhook(tenantId, id, request);
             return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException e) {
-            log.error("Failed to update webhook: {}", e.getMessage());
+        } catch (WorkflowValidationException e) {
+            log.warn("Validation failed: {}", e.getMessage());
             return ResponseEntity.notFound().build();
         }
     }
@@ -78,8 +83,8 @@ public class WebhookController {
         try {
             webhookTriggerService.deleteWebhook(tenantId, id);
             return ResponseEntity.noContent().build();
-        } catch (IllegalArgumentException e) {
-            log.error("Failed to delete webhook: {}", e.getMessage());
+        } catch (WorkflowValidationException e) {
+            log.warn("Validation failed: {}", e.getMessage());
             return ResponseEntity.notFound().build();
         }
     }
@@ -95,8 +100,8 @@ public class WebhookController {
         try {
             WebhookRegistrationResponse response = webhookTriggerService.getWebhook(tenantId, id);
             return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException e) {
-            log.error("Failed to get webhook: {}", e.getMessage());
+        } catch (WorkflowValidationException e) {
+            log.warn("Validation failed: {}", e.getMessage());
             return ResponseEntity.notFound().build();
         }
     }
@@ -123,7 +128,7 @@ public class WebhookController {
         try {
             webhookTriggerService.toggleWebhook(tenantId, id, true);
             return ResponseEntity.ok().build();
-        } catch (IllegalArgumentException e) {
+        } catch (WorkflowValidationException e) {
             return ResponseEntity.notFound().build();
         }
     }
@@ -139,7 +144,7 @@ public class WebhookController {
         try {
             webhookTriggerService.toggleWebhook(tenantId, id, false);
             return ResponseEntity.ok().build();
-        } catch (IllegalArgumentException e) {
+        } catch (WorkflowValidationException e) {
             return ResponseEntity.notFound().build();
         }
     }
@@ -155,7 +160,7 @@ public class WebhookController {
         try {
             webhookTriggerService.resetStatistics(tenantId, id);
             return ResponseEntity.ok().build();
-        } catch (IllegalArgumentException e) {
+        } catch (WorkflowValidationException e) {
             return ResponseEntity.notFound().build();
         }
     }
@@ -167,8 +172,17 @@ public class WebhookController {
     @PostMapping("/{path}")
     public ResponseEntity<WebhookTriggerResponse> triggerWebhook(
             @PathVariable String path,
+            @RequestHeader(value = "Content-Type", required = false) String contentType,
             @RequestBody(required = false) Map<String, Object> body,
             @RequestHeader Map<String, String> headers) {
+        // 验证 Content-Type
+        if (body != null && !body.isEmpty()) {
+            if (contentType == null || !contentType.contains("application/json")) {
+                return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                        .body(WebhookTriggerResponse.failure("仅支持 application/json 格式"));
+            }
+        }
+
         try {
             WebhookRequest request = new WebhookRequest();
             request.setData(body);

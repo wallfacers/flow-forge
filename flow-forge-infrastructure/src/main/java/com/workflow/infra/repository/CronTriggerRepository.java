@@ -2,6 +2,7 @@ package com.workflow.infra.repository;
 
 import com.workflow.infra.entity.CronTriggerEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -59,12 +60,14 @@ public interface CronTriggerRepository extends JpaRepository<CronTriggerEntity, 
     /**
      * 软删除：根据 ID 标记为已删除
      */
+    @Modifying
     @Query("UPDATE CronTriggerEntity c SET c.deletedAt = :deletedAt WHERE c.id = :id")
     int softDeleteById(@Param("id") UUID id, @Param("deletedAt") Instant deletedAt);
 
     /**
      * 软删除：根据租户ID和工作流ID标记为已删除
      */
+    @Modifying
     @Query("UPDATE CronTriggerEntity c SET c.deletedAt = :deletedAt " +
            "WHERE c.tenantId = :tenantId AND c.workflowId = :workflowId AND c.deletedAt IS NULL")
     int softDeleteByTenantAndWorkflow(@Param("tenantId") String tenantId,
@@ -74,6 +77,7 @@ public interface CronTriggerRepository extends JpaRepository<CronTriggerEntity, 
     /**
      * 软删除：根据 PowerJob 任务ID标记为已删除
      */
+    @Modifying
     @Query("UPDATE CronTriggerEntity c SET c.enabled = false, c.deletedAt = :deletedAt " +
            "WHERE c.powerjobJobId = :powerjobJobId AND c.deletedAt IS NULL")
     int softDeleteByPowerjobJobId(@Param("powerjobJobId") Long powerjobJobId, @Param("deletedAt") Instant deletedAt);
@@ -87,6 +91,7 @@ public interface CronTriggerRepository extends JpaRepository<CronTriggerEntity, 
     /**
      * 清理过期的已删除记录
      */
+    @Modifying
     @Query("DELETE FROM CronTriggerEntity c WHERE c.deletedAt IS NOT NULL AND c.deletedAt < :beforeDate")
     int purgeDeletedBefore(@Param("beforeDate") Instant beforeDate);
 
