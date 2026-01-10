@@ -141,7 +141,7 @@ private static final Pattern SAFE_PATTERN =
 | 7.5 | RecoveryService | `.../checkpoint/CheckpointRecoveryService.java` | 从DB加载检查点、恢复执行 | 恢复入度映射，继续执行 | ✅ | # 691f847 |
 | 7.6 | 重试策略 | `.../retry/RetryPolicy.java` | 指数退避算法 | 支持4种策略: Fixed, Linear, Exponential, Jitter | ✅ | # 691f847 |
 | 7.7 | WorkflowDispatcher | `.../dispatcher/WorkflowDispatcher.java` | 虚拟线程并发调度 | 异步执行、取消、恢复 | ✅ | # 691f847 |
-| 7.8 | 断点续传测试 | `.../checkpoint/CheckpointTest.java` | 进程中断后恢复验证 | 待编写 | 🔲 | - |
+| 7.8 | 断点续传测试 | `.../checkpoint/CheckpointTest.java` | 进程中断后恢复验证 | 24个测试用例，覆盖快照/恢复/拓扑排序 | ✅ | # eccb737 |
 
 **表结构关键部分**:
 ```sql
@@ -166,7 +166,7 @@ CREATE TABLE workflow_execution_history (
 - [x] 检查点保存和恢复机制
 - [x] 重试策略（指数退避+抖动）
 - [x] 虚拟线程并发调度
-- [ ] 断点续传测试（待编写）
+- [x] 断点续传测试（24个测试用例全部通过）
 
 ---
 
@@ -349,11 +349,11 @@ refactor: 重构
 | M2 | W3 | ✅ 执行HTTP→Log流程，变量解析正确 |
 | M3 | W5 | ✅ 安全执行JS脚本，资源限制生效 |
 | M4 | W6 | ✅ 条件分支和合并正常工作 |
-| M5 | W8 | 🔲 进程崩溃后恢复，重试策略正确 |
+| M5 | W8 | ✅ 进程崩溃后恢复，重试策略正确 |
 | M6 | W9 | 🔲 Webhook/Cron触发器工作 |
 | M7 | W11 | 🔲 多租户隔离生效，可视化API可用 |
 | M8 | W12 | 🔲 Docker一键部署成功 |
 
 ---
 
-*更新时间: 2025-01-11 (Week 7-8 实现中)*
+*更新时间: 2025-01-11 (Week 7-8 已完成)*
