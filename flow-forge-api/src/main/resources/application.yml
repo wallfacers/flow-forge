@@ -1,0 +1,171 @@
+# Flow-Forge DAG 工作流引擎配置文件
+# 支持通过环境变量覆盖所有配置项
+
+spring:
+  application:
+    name: flow-forge
+
+  # 数据源配置 (PostgreSQL)
+  datasource:
+    url: ${POSTGRES_URL:jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:flow_forge}}
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:123456}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:20}
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # JPA 配置
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: ${DDL_AUTO:validate}
+    show-sql: ${SHOW_SQL:false}
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          batch_size: 25
+        order_inserts: true
+        order_updates: true
+
+  # Redis 配置
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DB:0}
+      timeout: 5000ms
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+
+  # 文件上传配置
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+
+# 服务器配置
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 10
+
+# Actuator 健康检查
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  health:
+    db:
+      enabled: true
+    redis:
+      enabled: true
+
+# MinIO 对象存储配置
+minio:
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  bucket-name: ${MINIO_BUCKET:flow-forge}
+  connect-timeout: 10000
+  write-timeout: 60000
+  read-timeout: 10000
+
+# Flow-Forge 引擎配置
+flow-forge:
+  # 虚拟线程配置
+  virtual-threads:
+    enabled: ${VIRTUAL_THREADS_ENABLED:true}
+
+  # 检查点配置
+  checkpoint:
+    enabled: ${CHECKPOINT_ENABLED:true}
+    save-interval: ${CHECKPOINT_INTERVAL:5000}
+
+  # 重试配置
+  retry:
+    max-attempts: ${RETRY_MAX_ATTEMPTS:3}
+    initial-interval: ${RETRY_INITIAL_INTERVAL:1000}
+    multiplier: ${RETRY_MULTIPLIER:2.0}
+    max-interval: ${RETRY_MAX_INTERVAL:60000}
+
+  # 大结果存储阈值
+  large-result:
+    threshold-bytes: ${LARGE_RESULT_THRESHOLD:2097152}
+
+  # GraalVM 沙箱配置
+  graalvm:
+    enabled: ${GRAALVM_ENABLED:true}
+    memory-limit: ${GRAALVM_MEMORY_LIMIT:134217728}
+    statement-limit: ${GRAALVM_STATEMENT_LIMIT:10000}
+
+# PowerJob 配置
+powerjob:
+  worker:
+    enabled: ${POWERJOB_ENABLED:false}
+    app-name: ${POWERJOB_APP_NAME:flow-forge}
+    server-address: ${POWERJOB_SERVER_ADDRESS:localhost:7700}
+    port: ${POWERJOB_PORT:27777}
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    com.workflow: ${LOG_LEVEL:DEBUG}
+    org.springframework.web: INFO
+    org.hibernate.SQL: ${SHOW_SQL:false:WARN}
+    org.hibernate.type.descriptor.sql.BasicBinder: ${SHOW_SQL:false:WARN}
+  pattern:
+    console: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n'
+  file:
+    name: /var/log/flow-forge/application.log
+    max-size: 100MB
+    max-history: 30
+
+---
+# 开发环境配置
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+logging:
+  level:
+    com.workflow: DEBUG
+
+---
+# 生产环境配置
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  jpa:
+    show-sql: false
+
+logging:
+  level:
+    root: WARN
+    com.workflow: INFO
+    org.springframework.web: WARN

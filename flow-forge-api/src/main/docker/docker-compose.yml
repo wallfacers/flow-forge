@@ -1,0 +1,120 @@
+# Flow-Forge DAG 工作流引擎 Docker Compose 配置
+# 使用方式: docker-compose up -d
+#
+# 环境变量说明:
+# - POSTGRES_*: 连接外部 PostgreSQL 实例
+# - REDIS_*: 连接 Docker 内的 Redis (默认配置即可)
+# - MINIO_*: 连接 Docker 内的 MinIO (默认配置即可)
+
+version: '3.8'
+
+services:
+  # Flow-Forge 应用服务
+  flow-forge:
+    build:
+      context: ../..
+      dockerfile: flow-forge-api/src/main/docker/Dockerfile
+    container_name: flow-forge-app
+    restart: unless-stopped
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    environment:
+      # Spring Profile
+      - SPRING_PROFILES_ACTIVE=prod
+
+      # 外部 PostgreSQL 连接配置 (必填)
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - POSTGRES_DB=${POSTGRES_DB:-flow_forge}
+      - POSTGRES_USER=${POSTGRES_USER:-flow_forge}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+
+      # Redis 连接配置 (Docker 内网)
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+
+      # MinIO 连接配置 (Docker 内网)
+      - MINIO_ENDPOINT=http://minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - MINIO_BUCKET=${MINIO_BUCKET:-flow-forge}
+
+      # JVM 配置
+      - JAVA_OPTS=-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC
+
+      # 日志级别
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - flow-forge-logs:/var/log/flow-forge
+    networks:
+      - flow-forge-network
+    depends_on:
+      - redis
+      - minio
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Redis 缓存服务
+  redis:
+    image: redis:7-alpine
+    container_name: flow-forge-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_EXPOSE_PORT:-6379}:6379"
+    command: >
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+    volumes:
+      - redis-data:/data
+    networks:
+      - flow-forge-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # MinIO 对象存储服务
+  minio:
+    image: minio/minio:latest
+    container_name: flow-forge-minio
+    restart: unless-stopped
+    ports:
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+      - "${MINIO_API_PORT:-9000}:9000"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY:-minioadmin}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - flow-forge-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+# 数据卷定义
+volumes:
+  flow-forge-logs:
+    driver: local
+  redis-data:
+    driver: local
+  minio-data:
+    driver: local
+
+# 网络定义
+networks:
+  flow-forge-network:
+    driver: bridge

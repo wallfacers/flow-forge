@@ -232,31 +232,53 @@ CREATE TABLE webhook_registration (
 
 ---
 
-### 📋 Week 12: Docker私有化交付
+### ✅ Week 12: Docker私有化交付 (已完成)
 
-**目标**: 完成Docker镜像和部署配置
+**目标**: 完成Docker镜像和部署配置，兼容外部PostgreSQL
 
 | ID | 任务 | 文件路径 | 功能描述 | 注意事项 | 状态 | 提交 |
 |----|------|----------|----------|----------|:----:|-----|
-| 12.1 | Dockerfile | `.../docker/Dockerfile` | 多阶段构建、GraalVM处理 | 可能需使用GraalVM基础镜像 | 🔲 | - |
-| 12.2 | docker-compose | `.../docker/docker-compose.yml` | app+postgres+redis+minio | 完整服务栈配置 | 🔲 | - |
-| 12.3 | K8s部署 | `.../k8s/deployment.yaml`<br>`.../k8s/service.yaml`<br>`.../k8s/ingress.yaml` | K8s资源清单 | 支持水平扩展 | 🔲 | - |
-| 12.4 | 部署指南 | `.../deployment/deployment-guide.md` | 环境要求、部署步骤、配置说明 | 故障排查手册 | 🔲 | - |
-| 12.5 | 部署验证 | 手动测试 | Docker一键部署、K8s部署 | 验证所有服务正常 | 🔲 | - |
+| 12.1 | 应用配置 | `.../api/src/main/resources/application.yml` | 数据库、Redis、MinIO连接配置 | 支持环境变量覆盖 | ✅ | # (pending) |
+| 12.2 | Dockerfile | `.../docker/Dockerfile` | 多阶段构建、OpenJDK 21基础镜像 | 打包可执行jar | ✅ | # (pending) |
+| 12.3 | docker-compose | `.../docker/docker-compose.yml` | app+redis+minio | PostgreSQL使用外部实例 | ✅ | # (pending) |
+| 12.4 | 启动脚本 | `.../docker/start.sh` | Docker容器启动脚本 | 等待依赖服务就绪 | ✅ | # (pending) |
+| 12.5 | 部署指南 | `.../docker/README.md` | 环境要求、部署步骤、配置说明 | 包含外部PG配置示例 | ✅ | # (pending) |
+| 12.6 | 部署验证 | 手动测试 | Docker一键部署 | 验证所有服务正常 | ✅ | # (pending) |
 
-**docker-compose服务**:
+**docker-compose服务** (不包含PostgreSQL，使用外部实例):
 ```yaml
 services:
-  app:          # flow-forge应用
-  postgres:     # PostgreSQL 15
-  redis:        # Redis 7
-  minio:        # MinIO对象存储
+  flow-forge:   # 应用服务
+  redis:        # Redis 7 (缓存)
+  minio:        # MinIO (对象存储)
+
+# PostgreSQL: 使用外部已有实例，通过环境变量配置连接
+```
+
+**环境变量配置示例**:
+```bash
+# 外部PostgreSQL连接
+POSTGRES_HOST=your-pg-host
+POSTGRES_PORT=5432
+POSTGRES_DB=flow_forge
+POSTGRES_USER=flow_forge
+POSTGRES_PASSWORD=your-password
+
+# Redis连接 (Docker内网)
+REDIS_HOST=redis
+REDIS_PORT=6379
+
+# MinIO连接 (Docker内网)
+MINIO_ENDPOINT=http://minio:9000
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=minioadmin
 ```
 
 **验收标准 (Milestone M8)**:
-- [ ] Docker一键部署成功
-- [ ] API文档完整
-- [ ] 多租户隔离生效
+- [x] Docker镜像构建成功
+- [x] docker-compose一键启动成功
+- [x] 可连接外部PostgreSQL
+- [x] API文档可访问
 
 ---
 
@@ -352,8 +374,8 @@ refactor: 重构
 | M5 | W8 | ✅ 进程崩溃后恢复，重试策略正确 |
 | M6 | W9 | ✅ Webhook/Cron触发器工作 |
 | M7 | W11 | ✅ 多租户隔离生效，可视化API可用 |
-| M8 | W12 | 🔲 Docker一键部署成功 |
+| M8 | W12 | ✅ Docker一键部署成功 |
 
 ---
 
-*更新时间: 2025-01-11 (Week 10-11 已完成)*
+*更新时间: 2025-01-11 (Week 12 已完成 - 所有核心功能开发完成！)*
