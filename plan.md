@@ -178,7 +178,7 @@ CREATE TABLE workflow_execution_history (
 |----|------|----------|----------|----------|:----:|-----|
 | 9.1 | Webhook服务 | `.../webhook/WebhookTriggerService.java` | 接收Webhook请求、解析、触发工作流 | POST /api/webhook/{workflowId} | 🔲 | - |
 | 9.2 | Webhook注册表 | `.../resources/db/init.sql` | webhook_registration表 | 存储callback_url、secret | 🔲 | - |
-| 9.3 | Quartz管理器 | `.../cron/QuartzJobManager.java` | 管理Scheduler、创建/删除任务 | 使用spring-boot-starter-quartz | 🔲 | - |
+| 9.3 | PowerJob管理器 | `.../cron/PowerJobManager.java` | 管理Scheduler、创建/删除任务 | 使用powerjob-worker | 🔲 | - |
 | 9.4 | Cron服务 | `.../cron/CronTriggerService.java` | 创建Cron触发器 | POST /api/triggers/cron | 🔲 | - |
 | 9.5 | WAIT节点 | `.../node/wait/WaitNodeExecutor.java` | 暂停执行、等待回调、释放内存 | 状态: RUNNING ↔ WAITING | 🔲 | - |
 | 9.6 | 触发器测试 | `.../trigger/TriggerTest.java` | Webhook、Cron、WAIT节点测试 | 覆盖所有触发器类型 | 🔲 | - |

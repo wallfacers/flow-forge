@@ -122,7 +122,7 @@ public class GraalSandbox {
 | **逻辑控制**           | W4-W5       | 1. GraalVM集成JS沙箱2. 实现沙箱安全策略（IO/线程限制）                     | ✅ **安全脚本模块**：`GraalSandbox.execute()`✅ **性能压测报告**：10k并发脚本执行（平均延迟<50ms） | **GraalVM兼容性**：Docker镜像基于`eclipse-temurin:21-jdk`，预编译GraalVM二进制 |
 |                        | W6          | 1. IF分支节点（SpEL表达式解析）2. Merge节点（多路合并）                     | ✅ **复杂控制流内核**：```<br>if {{status == 200}} → A<br>else → B<br>merge → C<br>```✅ **防死循环**：循环节点配置`maxIterations=100` | **SpEL注入风险**：表达式解析前过滤`{}`/`[]`（`SpelEvaluator.sanitize()`） |
 | **企业级特性**         | W7-W8       | 1. Checkpoint持久化（PostgreSQL JSONB）2. 重试策略（Exponential Backoff） | ✅ **断点续传引擎**：进程崩溃后恢复`workflow_id`✅ **错误日志**：记录`input/output/duration/stacktrace` | **OOM防护**：`NodeResult` > 2MB → 自动存MinIO，Context存`blob_id`（`minio://blob/123`） |
-|                        | W9          | 1. Webhook触发器（注册回调URL）2. Cron触发器（基于Quartz）                   | ✅ **事件驱动闭环**：Webhook → Workflow → Callback → 恢复调度 | **长事务处理**：WAIT节点返回`{status: "PENDING", callback_url: "http://webhook"}`，引擎释放内存 |
+|                        | W9          | 1. Webhook触发器（注册回调URL）2. Cron触发器（基于PowerJob）                 | ✅ **事件驱动闭环**：Webhook → Workflow → Callback → 恢复调度 | **长事务处理**：WAIT节点返回`{status: "PENDING", callback_url: "http://webhook"}`，引擎释放内存 |
 | **私有化交付**         | W10-W11     | 1. Execution History可视化（类似n8n）2. 多租户隔离（`tenant_id`字段）       | ✅ **流程调试API**：`/api/executions/{id}/history`（输入/输出/耗时） | **多租户**：所有表增加`tenant_id`，API自动注入`X-Tenant-ID` |
 |                        | W12         | 1. Docker Compose私有化包2. K8s Deployment YAML + API手册（Swagger）        | ✅ **甲方交付包**：- `docker-compose.yml`（含PostgreSQL/Redis/MinIO）- `k8s/deployment.yaml`- `api-docs/swagger.json` | **依赖冲突**：**强制Docker交付**，不提供JAR包 |
 

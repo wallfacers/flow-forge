@@ -36,16 +36,10 @@
             <artifactId>spring-web</artifactId>
         </dependency>
 
-        <!-- Quartz Scheduler -->
+        <!-- PowerJob Worker -->
         <dependency>
-            <groupId>org.quartz-scheduler</groupId>
-            <artifactId>quartz</artifactId>
-        </dependency>
-
-        <!-- Spring Boot Quartz Integration -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-quartz</artifactId>
+            <groupId>tech.powerjob</groupId>
+            <artifactId>powerjob-worker</artifactId>
         </dependency>
 
         <!-- Lombok -->
