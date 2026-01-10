@@ -1,7 +1,7 @@
 package com.workflow.trigger.webhook;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.workflow.exception.WorkflowValidationException;
+import com.workflow.model.WorkflowValidationException;
 import com.workflow.infra.entity.WebhookRegistrationEntity;
 import com.workflow.infra.repository.WebhookRegistrationRepository;
 import com.workflow.trigger.dto.WebhookRegistrationRequest;

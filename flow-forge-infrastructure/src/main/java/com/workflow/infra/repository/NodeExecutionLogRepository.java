@@ -31,6 +31,11 @@ public interface NodeExecutionLogRepository extends JpaRepository<NodeExecutionL
     List<NodeExecutionLogEntity> findByExecutionIdStrAndDeletedAtIsNullOrderByStartedAtAsc(String executionIdStr);
 
     /**
+     * 根据执行ID字符串查找所有节点日志（简化方法名）
+     */
+    List<NodeExecutionLogEntity> findByExecutionIdStr(String executionIdStr);
+
+    /**
      * 根据执行ID和节点ID查找日志（未删除）
      */
     Optional<NodeExecutionLogEntity> findByExecutionIdAndNodeIdAndDeletedAtIsNull(UUID executionId, String nodeId);

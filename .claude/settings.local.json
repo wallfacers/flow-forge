@@ -10,7 +10,8 @@
       "Bash(git restore:*)",
       "Bash(git stash:*)",
       "Bash(find:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(git rm:*)"
     ],
     "language": "zh-CN"
   },

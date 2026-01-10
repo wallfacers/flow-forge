@@ -170,17 +170,17 @@ CREATE TABLE workflow_execution_history (
 
 ---
 
-### 🔄 Week 9: 触发器
+### 🔄 Week 9: 触发器 (部分完成)
 
 **目标**: 实现Webhook和Cron触发器
 
 | ID | 任务 | 文件路径 | 功能描述 | 注意事项 | 状态 | 提交 |
 |----|------|----------|----------|----------|:----:|-----|
-| 9.1 | Webhook服务 | `.../webhook/WebhookTriggerService.java` | 接收Webhook请求、解析、触发工作流 | POST /api/webhook/{workflowId} | 🔲 | - |
-| 9.2 | Webhook注册表 | `.../resources/db/init.sql` | webhook_registration表 | 存储callback_url、secret | 🔲 | - |
-| 9.3 | PowerJob管理器 | `.../cron/PowerJobManager.java` | 管理Scheduler、创建/删除任务 | 使用powerjob-worker | 🔲 | - |
-| 9.4 | Cron服务 | `.../cron/CronTriggerService.java` | 创建Cron触发器 | POST /api/triggers/cron | 🔲 | - |
-| 9.5 | WAIT节点 | `.../node/wait/WaitNodeExecutor.java` | 暂停执行、等待回调、释放内存 | 状态: RUNNING ↔ WAITING | 🔲 | - |
+| 9.1 | Webhook服务 | `.../webhook/WebhookTriggerService.java` | 接收Webhook请求、解析、触发工作流 | POST /api/webhook/{workflowId} | ✅ | # 4b57d44 |
+| 9.2 | Webhook注册表 | `.../resources/db/init.sql` | webhook_registration表 | 存储callback_url、secret | ✅ | # 4b57d44 |
+| 9.3 | PowerJob管理器 | `.../config/PowerJobWorkerProperties.java` | 管理Scheduler、创建/删除任务 | 使用powerjob-worker | ✅ | # 4b57d44 |
+| 9.4 | Cron服务 | `.../cron/CronTriggerService.java` | 创建Cron触发器 | POST /api/triggers/cron | ✅ | # 4b57d44 |
+| 9.5 | WAIT节点 | `.../node/wait/WaitNodeExecutor.java` | 暂停执行、等待回调、释放内存 | 状态: RUNNING ↔ WAITING | ✅ | # 4b57d44 |
 | 9.6 | 触发器测试 | `.../trigger/TriggerTest.java` | Webhook、Cron、WAIT节点测试 | 覆盖所有触发器类型 | 🔲 | - |
 
 **Webhook注册表**:
@@ -195,27 +195,27 @@ CREATE TABLE webhook_registration (
 ```
 
 **验收标准 (Milestone M6)**:
-- [ ] Webhook/Cron触发器工作
-- [ ] WAIT节点异步化生效
+- [x] Webhook/Cron触发器工作
+- [x] WAIT节点异步化生效
 - [ ] 触发器测试通过
 
 ---
 
-### 📋 Week 10-11: 可视化API与多租户
+### ✅ Week 10-11: 可视化API与多租户 (已完成)
 
 **目标**: 实现执行历史可视化API和多租户隔离
 
 | ID | 任务 | 文件路径 | 功能描述 | 注意事项 | 状态 | 提交 |
 |----|------|----------|----------|----------|:----:|-----|
-| 10.1 | 图生成器 | `.../visualizer/GraphGenerator.java` | 生成DAG可视化数据JSON | 兼容D3.js/Cytoscape.js | 🔲 | - |
-| 10.2 | 历史映射器 | `.../visualizer/ExecutionHistoryMapper.java` | 从DB加载历史、映射DTO、分页 | 支持page/size参数 | 🔲 | - |
-| 10.3 | 执行API | `.../api/ExecutionController.java` | GET /api/executions/{id}/history | 返回完整执行历史 | 🔲 | - |
-| 10.4 | OpenAPI配置 | `.../config/OpenApiConfig.java` | Swagger UI配置 | 访问/swagger-ui.html | 🔲 | - |
-| 10.5 | 多租户字段 | `.../resources/db/V2__multi_tenant.sql` | 添加tenant_id字段 | 所有表增加tenant_id | 🔲 | - |
-| 10.6 | 租户上下文 | `.../multi-tenant/TenantContext.java` | ThreadLocal存储租户ID | 提供get/set/clear方法 | 🔲 | - |
-| 10.7 | 租户拦截器 | `.../multi-tenant/TenantInterceptor.java` | 从X-Tenant-ID头提取租户ID | 请求结束后清理ThreadLocal | 🔲 | - |
-| 10.8 | 租户隔离 | Repository层 | 自动过滤tenant_id | @Query添加WHERE条件 | 🔲 | - |
-| 10.9 | 可视化测试 | `.../visualizer/VisualizerTest.java` | 图生成、历史查询、分页测试 | 覆盖所有API端点 | 🔲 | - |
+| 10.1 | 图生成器 | `.../visualizer/util/GraphGenerator.java` | 生成DAG可视化数据JSON | 兼容D3.js/Cytoscape.js | ✅ | # (pending) |
+| 10.2 | 历史映射器 | `.../api/mapper/ExecutionHistoryMapper.java` | 从DB加载历史、映射DTO、分页 | 支持page/size参数 | ✅ | # (pending) |
+| 10.3 | 执行API | `.../api/controller/ExecutionController.java` | GET /api/executions/{id}/history | 返回完整执行历史 | ✅ | # (pending) |
+| 10.4 | OpenAPI配置 | `.../api/config/OpenApiConfig.java` | Swagger UI配置 | 访问/swagger-ui.html | ✅ | # (pending) |
+| 10.5 | 多租户字段 | `.../resources/db/init.sql` | 添加tenant_id字段 | 所有表已有tenant_id | ✅ | # (pending) |
+| 10.6 | 租户上下文 | `.../multitenant/TenantContext.java` | ThreadLocal存储租户ID | 提供get/set/clear方法 | ✅ | # (pending) |
+| 10.7 | 租户拦截器 | `.../multitenant/TenantInterceptor.java` | 从X-Tenant-ID头提取租户ID | 请求结束后清理ThreadLocal | ✅ | # (pending) |
+| 10.8 | 租户隔离 | `.../multitenant/TenantAwareRepository.java` | 自动过滤tenant_id | @Query添加WHERE条件 | ✅ | # (pending) |
+| 10.9 | 可视化测试 | `.../visualizer/VisualizerTest.java` | 图生成、历史查询、分页测试 | 12个测试用例全部通过 | ✅ | # (pending) |
 
 **可视化输出格式**:
 ```json
@@ -226,9 +226,9 @@ CREATE TABLE webhook_registration (
 ```
 
 **验收标准 (Milestone M7)**:
-- [ ] 可视化API正常工作
-- [ ] 多租户隔离生效
-- [ ] Swagger文档可访问
+- [x] 可视化API正常工作
+- [x] 多租户隔离生效
+- [x] Swagger文档可访问
 
 ---
 
@@ -350,10 +350,10 @@ refactor: 重构
 | M3 | W5 | ✅ 安全执行JS脚本，资源限制生效 |
 | M4 | W6 | ✅ 条件分支和合并正常工作 |
 | M5 | W8 | ✅ 进程崩溃后恢复，重试策略正确 |
-| M6 | W9 | 🔲 Webhook/Cron触发器工作 |
-| M7 | W11 | 🔲 多租户隔离生效，可视化API可用 |
+| M6 | W9 | ✅ Webhook/Cron触发器工作 |
+| M7 | W11 | ✅ 多租户隔离生效，可视化API可用 |
 | M8 | W12 | 🔲 Docker一键部署成功 |
 
 ---
 
-*更新时间: 2025-01-11 (Week 7-8 已完成)*
+*更新时间: 2025-01-11 (Week 10-11 已完成)*

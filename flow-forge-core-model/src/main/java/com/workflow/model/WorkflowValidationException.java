@@ -6,7 +6,7 @@ package com.workflow.model;
  * 当工作流定义验证失败时抛出此异常
  * </p>
  */
-public class WorkflowValidationException extends Exception {
+public class WorkflowValidationException extends RuntimeException {
 
     public WorkflowValidationException(String message) {
         super(message);

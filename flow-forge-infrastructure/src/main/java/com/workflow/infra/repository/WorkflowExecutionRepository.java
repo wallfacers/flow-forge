@@ -2,6 +2,8 @@ package com.workflow.infra.repository;
 
 import com.workflow.infra.entity.WorkflowExecutionEntity;
 import com.workflow.model.ExecutionStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -110,4 +112,29 @@ public interface WorkflowExecutionRepository extends JpaRepository<WorkflowExecu
      * 检查执行ID是否存在
      */
     boolean existsByExecutionIdAndDeletedAtIsNull(String executionId);
+
+    /**
+     * 分页查询所有执行记录（未删除）
+     */
+    Page<WorkflowExecutionEntity> findAllByDeletedAtIsNull(Pageable pageable);
+
+    /**
+     * 根据工作流ID分页查询执行记录（未删除）
+     */
+    Page<WorkflowExecutionEntity> findByWorkflowIdAndDeletedAtIsNull(String workflowId, Pageable pageable);
+
+    /**
+     * 根据状态分页查询执行记录（未删除）
+     */
+    Page<WorkflowExecutionEntity> findByStatusAndDeletedAtIsNull(ExecutionStatus status, Pageable pageable);
+
+    /**
+     * 根据租户ID分页查询执行记录（未删除）
+     */
+    Page<WorkflowExecutionEntity> findByTenantIdAndDeletedAtIsNull(String tenantId, Pageable pageable);
+
+    /**
+     * 根据租户ID和状态分页查询执行记录（未删除）
+     */
+    Page<WorkflowExecutionEntity> findByTenantIdAndStatusAndDeletedAtIsNull(String tenantId, ExecutionStatus status, Pageable pageable);
 }

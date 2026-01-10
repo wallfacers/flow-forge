@@ -1,7 +1,7 @@
 package com.workflow.trigger.webhook;
 
-import com.workflow.exception.WorkflowException;
-import com.workflow.exception.WorkflowValidationException;
+import com.workflow.model.WorkflowException;
+import com.workflow.model.WorkflowValidationException;
 import com.workflow.trigger.dto.WebhookRegistrationRequest;
 import com.workflow.trigger.dto.WebhookRegistrationResponse;
 import com.workflow.trigger.dto.WebhookRequest;

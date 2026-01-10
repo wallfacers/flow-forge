@@ -1,7 +1,7 @@
 package com.workflow.trigger.cron;
 
-import com.workflow.exception.WorkflowException;
-import com.workflow.exception.WorkflowValidationException;
+import com.workflow.model.WorkflowException;
+import com.workflow.model.WorkflowValidationException;
 import com.workflow.trigger.dto.CronTriggerRequest;
 import com.workflow.trigger.dto.CronTriggerResponse;
 import jakarta.validation.Valid;
