@@ -28,6 +28,7 @@
 
         <!-- Dependency Versions -->
         <jgrapht.version>1.5.2</jgrapht.version>
+        <!-- GraalVM Polyglot API: 23.1.0 compatible with GraalVM JDK 21.0.9+ -->
         <graalvm.version>23.1.0</graalvm.version>
         <springdoc.version>2.2.0</springdoc.version>
         <commons-lang3.version>3.13.0</commons-lang3.version>

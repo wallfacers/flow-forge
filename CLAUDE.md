@@ -143,6 +143,64 @@ See `plan.md` for detailed task breakdown.
 - **Multi-tenant** - All tables have `tenant_id`, API requires `X-Tenant-ID` header
 - **Large results** (>2MB) auto-stored in MinIO, context holds only `blob_id` reference
 
+## GraalVM Sandbox Integration Guidelines
+
+When working with the GraalVM sandbox (`GraalSandbox`), follow these patterns:
+
+### 1. Virtual Thread Compatibility
+**Use platform thread executor for all GraalVM Context operations.** GraalVM's optimizing Truffle runtime does not support virtual threads. Execute all Context operations on platform threads, while virtual threads only submit tasks and wait for results.
+
+```java
+private static final ExecutorService PLATFORM_EXECUTOR = Executors.newFixedThreadPool(
+        Runtime.getRuntime().availableProcessors(),
+        r -> new Thread(r, "GraalSandbox-Platform"));
+
+public SandboxResult execute(String code, Map<String, Object> bindings) {
+    Future<Object> future = PLATFORM_EXECUTOR.submit(() -> {
+        // All Context operations here (on platform thread)
+        Value result = context.eval(LANGUAGE_ID, wrappedCode);
+        return new SandboxResult(...);
+    });
+    return future.get(timeoutMs, TimeUnit.MILLISECONDS); // virtual thread waits
+}
+```
+
+### 2. Error Handling Strategy
+**Distinguish between script errors and security violations.** Script errors (syntax, runtime) should return failed `SandboxResult` objects. Security violations (Access denied, resource limits) should throw `WorkflowException`.
+
+```java
+private SandboxResult handleExecutionException(Throwable e) {
+    String message = e.getMessage();
+    // Security violations - throw exception
+    if (message.contains("Access denied") || message.contains("not allowed")) {
+        throw new WorkflowException("Script security violation: " + message, e);
+    }
+    // Resource limits - throw exception
+    if (message.contains("statement limit") || message.contains("memory limit")) {
+        throw new WorkflowException("Script resource limit exceeded: " + message, e);
+    }
+    // Script errors - return failed result
+    return new SandboxResult(null, message, 0, false);
+}
+```
+
+### 3. Variable Access Pattern
+**Flatten input variables for `__input.x` access, extract `__global` and `__system` for direct access.** Bindings Map is bound as `__bindings`, then the wrapper extracts special variables for direct script access.
+
+```java
+// ScriptNodeExecutor.prepareBindings() - flatten input
+if (context.getInput() != null) {
+    bindings.putAll(context.getInput()); // x, y directly accessible
+}
+bindings.put("__global", context.getGlobalVariables());
+bindings.put("__system", systemVars);
+
+// GraalSandbox.wrapCode() - extract for direct access
+const __input = __bindings || {};
+const __global = __input.__global || {};
+const __system = __input.__system || __input.system || {};
+```
+
 ## Exception Handling
 
 Use `WorkflowException` for runtime errors and `WorkflowValidationException` for validation failures (e.g., cycle detection, missing nodes).

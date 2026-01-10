@@ -80,13 +80,13 @@
 
 | ID | 任务 | 文件路径 | 功能描述 | 注意事项 | 状态 | 提交 |
 |----|------|----------|----------|----------|:----:|-----|
-| 4.1 | 依赖验证 | `flow-forge-nodes/pom.xml` | 验证GraalVM依赖正确配置 | 版本23.1.0，需本地安装或Docker | 🔲 | - |
-| 4.2 | GraalSandbox | `.../sandbox/GraalSandbox.java` | 创建Context、执行代码、异常处理 | 内存128MB、指令10k、超时5s | 🔲 | - |
-| 4.3 | 安全策略 | `.../sandbox/GraalSandbox.java` | allowIO(false)、禁止线程、禁止反射 | 严格限制可访问的Java方法 | 🔲 | - |
-| 4.4 | 导出方法 | `.../sandbox/HostAccessExports.java` | 定义@HostAccess.Export安全方法 | 仅log()、sleep()等安全方法 | 🔲 | - |
-| 4.5 | Script节点 | `.../node/script/ScriptNodeExecutor.java` | 支持多语言脚本执行 | config: language, code, timeout | 🔲 | - |
-| 4.6 | 安全测试 | `.../sandbox/GraalSandboxSecurityTest.java` | 文件IO、线程创建、system.exit()应失败 | 恶意代码测试 | 🔲 | - |
-| 4.7 | 性能压测 | `.../sandbox/GraalSandboxPerformanceTest.java` | 10k并发，延迟<50ms(P95) | 虚拟线程性能测试 | 🔲 | - |
+| 4.1 | 依赖验证 | `flow-forge-nodes/pom.xml` | 验证GraalVM依赖正确配置 | 版本23.1.0，需本地安装或Docker | ✅ | # (待提交) |
+| 4.2 | GraalSandbox | `.../sandbox/GraalSandbox.java` | 创建Context、执行代码、异常处理 | 内存128MB、指令10k、超时5s | ✅ | # (待提交) |
+| 4.3 | 安全策略 | `.../sandbox/GraalSandbox.java` | allowIO(false)、禁止线程、禁止反射 | 严格限制可访问的Java方法 | ✅ | # (待提交) |
+| 4.4 | 导出方法 | `.../sandbox/HostAccessExports.java` | 定义@HostAccess.Export安全方法 | 仅log()、sleep()等安全方法 | ✅ | # (待提交) |
+| 4.5 | Script节点 | `.../node/script/ScriptNodeExecutor.java` | 支持多语言脚本执行 | config: language, code, timeout | ✅ | # (待提交) |
+| 4.6 | 安全测试 | `.../sandbox/GraalSandboxSecurityTest.java` | 文件IO、线程创建、system.exit()应失败 | 恶意代码测试 | ✅ | # (待提交) |
+| 4.7 | 性能压测 | `.../sandbox/GraalSandboxPerformanceTest.java` | 10k并发，延迟<50ms(P95) | 虚拟线程性能测试 | ✅ | # (待提交) |
 
 **资源限制配置**:
 ```java
