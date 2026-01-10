@@ -3,6 +3,7 @@ package com.workflow.model;
 import lombok.Builder;
 import lombok.Data;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.*;
@@ -19,6 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Builder
 public class ExecutionContext implements Serializable {
 
+    @Serial
     private static final long serialVersionUID = 1L;
 
     /**
@@ -64,13 +66,13 @@ public class ExecutionContext implements Serializable {
      * 输入参数（工作流启动时传入）
      */
     @Builder.Default
-    private Map<String, Object> input = new HashMap<>();
+    private Map<String, Object> input = new ConcurrentHashMap<>();
 
     /**
      * 工作流级别配置
      */
     @Builder.Default
-    private Map<String, Object> workflowConfig = new HashMap<>();
+    private Map<String, Object> workflowConfig = new ConcurrentHashMap<>();
 
     /**
      * 开始时间
@@ -98,13 +100,13 @@ public class ExecutionContext implements Serializable {
      * key: nodeId, value: current in-degree
      */
     @Builder.Default
-    private Map<String, Integer> inDegreeSnapshot = new HashMap<>();
+    private Map<String, Integer> inDegreeSnapshot = new ConcurrentHashMap<>();
 
     /**
      * 已完成的节点集合（用于断点续传恢复）
      */
     @Builder.Default
-    private Set<String> completedNodes = new HashSet<>();
+    private Set<String> completedNodes = ConcurrentHashMap.newKeySet();
 
     /**
      * 添加节点执行结果

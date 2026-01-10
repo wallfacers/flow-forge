@@ -1,8 +1,5 @@
 package com.workflow.model;
 
-import com.fasterxml.jackson.annotation.JsonAnyGetter;
-import com.fasterxml.jackson.annotation.JsonAnySetter;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -92,12 +89,6 @@ public class Node {
     private long timeout = 30000;
 
     /**
-     * 动态配置属性（用于JSON序列化/反序列化）
-     */
-    @JsonIgnore
-    private Map<String, Object> dynamicProperties = new HashMap<>();
-
-    /**
      * 获取配置值
      *
      * @param key 配置键
@@ -157,25 +148,6 @@ public class Node {
             this.config = new HashMap<>();
         }
         this.config.put(key, value);
-    }
-
-    /**
-     * 添加动态属性（用于JSON反序列化）
-     */
-    @JsonAnySetter
-    public void addDynamicProperty(String key, Object value) {
-        if (dynamicProperties == null) {
-            dynamicProperties = new HashMap<>();
-        }
-        dynamicProperties.put(key, value);
-    }
-
-    /**
-     * 获取所有动态属性（用于JSON序列化）
-     */
-    @JsonAnyGetter
-    public Map<String, Object> getDynamicProperties() {
-        return dynamicProperties;
     }
 
     /**
