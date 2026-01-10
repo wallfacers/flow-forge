@@ -109,21 +109,22 @@ ResourceLimits limits = ResourceLimits.newBuilder()
 
 | ID | 任务 | 文件路径 | 功能描述 | 注意事项 | 状态 | 提交 |
 |----|------|----------|----------|----------|:----:|-----|
-| 6.1 | SpEL解析器 | `.../condition/SpelEvaluator.java` | 解析SpEL表达式、安全过滤、求值 | sanitize()过滤，仅允许nodeX.property格式 | 🔲 | - |
-| 6.2 | IF节点 | `.../condition/IfNodeExecutor.java` | 评估condition，决定流向 | 条件判断在Edge层面处理 | 🔲 | - |
-| 6.3 | Merge节点 | `.../merge/MergeNodeExecutor.java` | 等待所有前驱完成、合并结果 | 入度>1，需等待所有入边完成 | 🔲 | - |
-| 6.4 | 条件分支测试 | `.../condition/ConditionalFlowTest.java` | IF true/false分支、嵌套、Merge等待 | 覆盖所有分支场景 | 🔲 | - |
+| 6.1 | SpEL解析器 | `.../condition/SpelEvaluator.java` | 解析SpEL表达式、安全过滤、求值 | sanitize()过滤，仅允许nodeX.property格式 | ✅ | # 7d4f21a |
+| 6.2 | IF节点 | `.../condition/IfNodeExecutor.java` | 评估condition，决定流向 | 条件判断在Edge层面处理 | ✅ | # 7d4f21a |
+| 6.3 | Merge节点 | `.../merge/MergeNodeExecutor.java` | 等待所有前驱完成、合并结果 | 入度>1，需等待所有入边完成 | ✅ | # 7d4f21a |
+| 6.4 | 条件分支测试 | `.../condition/ConditionalFlowTest.java` | IF true/false分支、嵌套、Merge等待 | 覆盖所有分支场景 | ✅ | # 7d4f21a |
+| 6.5 | 测试修复 | `.../script/ScriptNodeExecutorTest.java` | 修复资源清理问题 | 移除@AfterEach，避免关闭共享资源 | ✅ | # aeb56c5 |
 
 **安全过滤模式**:
 ```java
 private static final Pattern SAFE_PATTERN =
-    Pattern.compile("^[a-zA-Z0-9_.\\s+\\-*/%()=!<>|&]+$");
+    Pattern.compile("^[a-zA-Z0-9_.\\s+\\-*/%()=!<>|&#]+$");
 ```
 
 **验收标准 (Milestone M4)**:
-- [ ] 支持条件分支和合并
-- [ ] SpEL表达式安全过滤生效
-- [ ] 测试用例通过
+- [x] 支持条件分支和合并
+- [x] SpEL表达式安全过滤生效
+- [x] 测试用例通过
 
 ---
 
@@ -339,7 +340,7 @@ refactor: 重构
 | M1 | W1-W2 | ✅ 解析JSON DSL并检测循环 |
 | M2 | W3 | ✅ 执行HTTP→Log流程，变量解析正确 |
 | M3 | W5 | ✅ 安全执行JS脚本，资源限制生效 |
-| M4 | W6 | 🔲 条件分支和合并正常工作 |
+| M4 | W6 | ✅ 条件分支和合并正常工作 |
 | M5 | W8 | 🔲 进程崩溃后恢复，重试策略正确 |
 | M6 | W9 | 🔲 Webhook/Cron触发器工作 |
 | M7 | W11 | 🔲 多租户隔离生效，可视化API可用 |
@@ -347,4 +348,4 @@ refactor: 重构
 
 ---
 
-*更新时间: 2025-01-10*
+*更新时间: 2025-01-11*
