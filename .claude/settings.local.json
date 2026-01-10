@@ -6,6 +6,8 @@
       "Bash(git commit:*)",
       "Bash(git rev-parse:*)",
       "Bash(mvn:*)"
-    ]
-  }
+    ],
+    "language": "zh-CN"
+  },
+  "language": "zh-CN"
 }

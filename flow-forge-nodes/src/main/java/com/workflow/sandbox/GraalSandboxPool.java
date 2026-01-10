@@ -8,6 +8,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * GraalSandbox 对象池。
@@ -28,6 +29,7 @@ public class GraalSandboxPool {
     private static final Logger logger = LoggerFactory.getLogger(GraalSandboxPool.class);
 
     private static volatile GraalSandboxPool INSTANCE;
+    private static final ReentrantLock INIT_LOCK = new ReentrantLock();
 
     private final BlockingQueue<GraalSandbox> pool;
     private final AtomicInteger totalCreated;
@@ -45,10 +47,13 @@ public class GraalSandboxPool {
      */
     public static GraalSandboxPool getInstance() {
         if (INSTANCE == null) {
-            synchronized (GraalSandboxPool.class) {
+            INIT_LOCK.lock();
+            try {
                 if (INSTANCE == null) {
                     INSTANCE = new GraalSandboxPool(DEFAULT_POOL_SIZE);
                 }
+            } finally {
+                INIT_LOCK.unlock();
             }
         }
         return INSTANCE;
@@ -89,22 +94,27 @@ public class GraalSandboxPool {
      */
     public SandboxLease acquire() {
         GraalSandbox sandbox = pool.poll();
-        if (sandbox == null && totalCreated.get() < maxPoolSize) {
-            // 尝试创建新实例（如果未达到上限）
-            if (totalCreated.incrementAndGet() <= maxPoolSize) {
-                try {
-                    sandbox = new GraalSandbox();
-                    logger.debug("Created new sandbox, total: {}", totalCreated.get());
-                } catch (Exception e) {
-                    totalCreated.decrementAndGet();
-                    throw new WorkflowException("Failed to create sandbox", e);
+
+        // Try to create new instance if pool is empty and under limit
+        if (sandbox == null) {
+            int current = totalCreated.get();
+            // Use CAS loop to atomically increment
+            while (current < maxPoolSize) {
+                if (totalCreated.compareAndSet(current, current + 1)) {
+                    try {
+                        sandbox = new GraalSandbox();
+                        logger.debug("Created new sandbox, total: {}", totalCreated.get());
+                        break;
+                    } catch (Exception e) {
+                        totalCreated.decrementAndGet();
+                        throw new WorkflowException("Failed to create sandbox", e);
+                    }
                 }
-            } else {
-                totalCreated.decrementAndGet();
+                current = totalCreated.get();
             }
         }
 
-        // 如果仍然没有可用实例，等待
+        // If still no instance available, wait for one
         if (sandbox == null) {
             try {
                 sandbox = pool.poll(5, TimeUnit.SECONDS);

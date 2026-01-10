@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.concurrent.*;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * GraalVM沙箱执行环境。
@@ -65,11 +65,15 @@ public class GraalSandbox implements AutoCloseable {
             Runtime.getRuntime().availableProcessors(),
             r -> new Thread(r, "GraalSandbox-Platform"));
 
+    /**
+     * Shutdown flag to prevent new submissions during shutdown
+     */
+    private static final AtomicBoolean SHUTDOWN = new AtomicBoolean(false);
+
     private final Engine engine;
     private final Context context;
     private final HostAccessExports hostExports;
     private final long timeoutMs;
-    private final ReentrantLock executionLock = new ReentrantLock();
 
     /**
      * ThreadLocal 沙箱实例缓存（每个线程独立的沙箱）
@@ -140,6 +144,11 @@ public class GraalSandbox implements AutoCloseable {
             throw new IllegalArgumentException("Script code cannot be empty");
         }
 
+        // Check if executor has been shut down
+        if (SHUTDOWN.get()) {
+            throw new WorkflowException("GraalSandbox executor has been shut down");
+        }
+
         // 包装代码
         String wrappedCode = wrapCode(code);
 
@@ -147,8 +156,9 @@ public class GraalSandbox implements AutoCloseable {
 
         // 将所有 Context 操作提交到平台线程执行
         // 这解决了虚拟线程与 GraalVM Context 的兼容性问题
+        // 注意：每个 GraalSandbox 实例的 Context 不是线程安全的，
+        // 因此不应该对同一个实例并发调用 execute()
         Future<Object> future = PLATFORM_EXECUTOR.submit(() -> {
-            executionLock.lock();
             try {
                 // 重置输出捕获
                 hostExports.clearOutput();
@@ -172,8 +182,6 @@ public class GraalSandbox implements AutoCloseable {
             } catch (Throwable e) {
                 // 保存异常，在外部处理
                 return e;
-            } finally {
-                executionLock.unlock();
             }
         });
 
@@ -353,6 +361,43 @@ public class GraalSandbox implements AutoCloseable {
             }
             THREAD_LOCAL_SANDBOX.remove();
         }
+    }
+
+    /**
+     * 关闭平台线程执行器。
+     * <p>
+     * 应在应用程序关闭时调用，以释放所有平台线程资源。
+     * 关闭后将无法再执行脚本。
+     */
+    public static void shutdownPlatformExecutor() {
+        if (SHUTDOWN.compareAndSet(false, true)) {
+            logger.info("Shutting down GraalSandbox platform executor");
+            PLATFORM_EXECUTOR.shutdown();
+            try {
+                if (!PLATFORM_EXECUTOR.awaitTermination(5, TimeUnit.SECONDS)) {
+                    logger.warn("Platform executor did not terminate gracefully, forcing shutdown");
+                    PLATFORM_EXECUTOR.shutdownNow();
+                    if (!PLATFORM_EXECUTOR.awaitTermination(5, TimeUnit.SECONDS)) {
+                        logger.error("Platform executor did not terminate after forced shutdown");
+                    }
+                } else {
+                    logger.info("Platform executor terminated gracefully");
+                }
+            } catch (InterruptedException e) {
+                PLATFORM_EXECUTOR.shutdownNow();
+                Thread.currentThread().interrupt();
+                logger.warn("Platform executor shutdown interrupted");
+            }
+        }
+    }
+
+    /**
+     * 检查平台线程执行器是否已关闭。
+     *
+     * @return 如果已关闭返回 true
+     */
+    public static boolean isShutdown() {
+        return SHUTDOWN.get() || PLATFORM_EXECUTOR.isShutdown();
     }
 
     /**

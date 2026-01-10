@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.http.ResponseEntity;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
@@ -87,39 +88,29 @@ public class HttpNodeExecutor extends AbstractNodeExecutor {
             // Build request
             WebClient.RequestHeadersSpec<?> request = buildRequest(method, url, body, headers);
 
-            // Execute request
-            WebClient.ResponseSpec responseSpec = request.retrieve();
-
-            // Handle 4xx/5xx errors but capture response body
-            responseSpec = responseSpec.onStatus(
-                    status -> !status.is2xxSuccessful(),
-                    clientResponse -> {
-                        Mono<String> errorBody = clientResponse.bodyToMono(String.class);
-                        return errorBody.flatMap(bodyText -> Mono.error(
-                                new WebClientResponseException(
-                                        clientResponse.statusCode().value(),
-                                        clientResponse.statusCode().toString(),
-                                        clientResponse.headers().asHttpHeaders(),
-                                        bodyText.getBytes(),
-                                        null
-                                )
-                        ));
-                    }
-            );
-
-            // Get response
-            String responseBody = responseSpec.bodyToMono(String.class)
+            // Execute request and capture full response (status, headers, body)
+            // Use toEntity() to get ResponseEntity with all metadata
+            ResponseEntity<String> response = request.retrieve()
+                    .toEntity(String.class)
                     .block(Duration.ofSeconds(node.getTimeout() / 1000 + 10));
 
-            // For non-2xx responses, we need to extract status from exception
-            // Since onStatus handles this, we shouldn't get here for errors
+            // Build output with actual response details
             Map<String, Object> output = new HashMap<>();
-            output.put("status", 200); // Default, actual status from successful response
-            output.put("headers", new HashMap<String, String>());
-            output.put("body", responseBody != null ? responseBody : "");
+            output.put("status", response.getStatusCode().value());
+            output.put("headers", response.getHeaders().toSingleValueMap());
+            output.put("body", response.getBody() != null ? response.getBody() : "");
 
-            logger.debug("HTTP request completed: {} {} (node: {})", method, url, nodeId);
-            return NodeResult.success(nodeId, output);
+            // Return success for 2xx, failure for others
+            if (response.getStatusCode().is2xxSuccessful()) {
+                logger.debug("HTTP request completed: {} {} -> {} (node: {})",
+                        method, url, response.getStatusCode(), nodeId);
+                return NodeResult.success(nodeId, output);
+            } else {
+                logger.warn("HTTP request returned non-2xx status: {} {} -> {} (node: {})",
+                        method, url, response.getStatusCode(), nodeId);
+                return NodeResult.failure(nodeId,
+                        "HTTP request failed with status " + response.getStatusCode().value());
+            }
 
         } catch (WebClientResponseException e) {
             // Handle HTTP errors with response details

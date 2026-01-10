@@ -8,6 +8,7 @@ import com.workflow.model.NodeType;
 import com.workflow.model.WorkflowException;
 import com.workflow.node.AbstractNodeExecutor;
 import com.workflow.sandbox.GraalSandbox;
+import com.workflow.sandbox.GraalSandboxPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -49,12 +50,6 @@ public class ScriptNodeExecutor extends AbstractNodeExecutor {
     private static final String DEFAULT_CODE = "";
     private static final int DEFAULT_TIMEOUT = 5000;
 
-    /**
-     * 沙箱实例缓存（线程安全）。
-     * 使用ThreadLocal确保每个线程有自己的沙箱实例。
-     */
-    private static final ThreadLocal<GraalSandbox> SANDBOX_CACHE = ThreadLocal.withInitial(GraalSandbox::new);
-
     public ScriptNodeExecutor(VariableResolver variableResolver) {
         super(variableResolver);
     }
@@ -93,26 +88,28 @@ public class ScriptNodeExecutor extends AbstractNodeExecutor {
             // 准备绑定变量
             Map<String, Object> bindings = prepareBindings(node, context);
 
-            // 获取或创建沙箱实例
-            GraalSandbox sandbox = getSandbox(timeout);
+            // 从池中获取沙箱实例并执行（使用 try-with-resources 自动归还）
+            try (GraalSandboxPool.SandboxLease lease = GraalSandboxPool.getInstance().acquire()) {
+                GraalSandbox sandbox = lease.get();
 
-            // 执行脚本
-            GraalSandbox.SandboxResult result = sandbox.execute(code, bindings);
+                // 执行脚本
+                GraalSandbox.SandboxResult result = sandbox.execute(code, bindings);
 
-            if (!result.success()) {
-                logger.warn("Script execution failed: nodeId={}, error={}", nodeId, result.output());
-                return NodeResult.failure(nodeId, result.output());
+                if (!result.success()) {
+                    logger.warn("Script execution failed: nodeId={}, error={}", nodeId, result.output());
+                    return NodeResult.failure(nodeId, result.output());
+                }
+
+                // 构建输出
+                Map<String, Object> output = new HashMap<>();
+                output.put("returnValue", result.returnValue());
+                output.put("output", result.output());
+                output.put("duration", result.durationMs());
+
+                logger.debug("Script execution completed: nodeId={}, duration={}ms",
+                        nodeId, result.durationMs());
+                return NodeResult.success(nodeId, output);
             }
-
-            // 构建输出
-            Map<String, Object> output = new HashMap<>();
-            output.put("returnValue", result.returnValue());
-            output.put("output", result.output());
-            output.put("duration", result.durationMs());
-
-            logger.debug("Script execution completed: nodeId={}, duration={}ms",
-                    nodeId, result.durationMs());
-            return NodeResult.success(nodeId, output);
 
         } catch (WorkflowException e) {
             logger.error("Script execution failed: nodeId={}", nodeId, e);
@@ -188,56 +185,21 @@ public class ScriptNodeExecutor extends AbstractNodeExecutor {
     }
 
     /**
-     * 获取沙箱实例。
-     *
-     * @param timeout 超时时间
-     * @return 沙箱实例
-     */
-    private GraalSandbox getSandbox(int timeout) {
-        GraalSandbox sandbox = SANDBOX_CACHE.get();
-        if (sandbox == null || !isSandboxValid(sandbox, timeout)) {
-            sandbox = new GraalSandbox(timeout);
-            SANDBOX_CACHE.set(sandbox);
-        }
-        return sandbox;
-    }
-
-    /**
-     * 检查沙箱是否有效。
-     *
-     * @param sandbox 沙箱实例
-     * @param timeout 需要的超时时间
-     * @return 是否有效
-     */
-    private boolean isSandboxValid(GraalSandbox sandbox, int timeout) {
-        // 简单检查：如果超时时间差异太大，创建新实例
-        // 实际实现中可能需要更复杂的检查
-        return true;
-    }
-
-    /**
-     * 清理当前线程的沙箱实例。
+     * 清理沙箱池和平台线程执行器。
      * <p>
-     * 应在执行完成后调用，避免内存泄漏。
-     */
-    public static void cleanupCurrentThread() {
-        GraalSandbox sandbox = SANDBOX_CACHE.get();
-        if (sandbox != null) {
-            try {
-                sandbox.close();
-            } catch (Exception e) {
-                Logger logger = LoggerFactory.getLogger(ScriptNodeExecutor.class);
-                logger.warn("Error closing sandbox", e);
-            }
-            SANDBOX_CACHE.remove();
-        }
-    }
-
-    /**
-     * 清理所有线程的沙箱实例。
+     * 应在应用程序关闭时调用，以释放所有资源。
      */
     public static void cleanupAll() {
-        GraalSandbox.clearCache();
-        SANDBOX_CACHE.remove();
+        GraalSandboxPool.getInstance().shutdown();
+        GraalSandbox.shutdownPlatformExecutor();
+    }
+
+    /**
+     * 获取当前池大小（用于监控）。
+     *
+     * @return 当前可用的沙箱实例数量
+     */
+    public static int getPoolSize() {
+        return GraalSandboxPool.getInstance().getPoolSize();
     }
 }
