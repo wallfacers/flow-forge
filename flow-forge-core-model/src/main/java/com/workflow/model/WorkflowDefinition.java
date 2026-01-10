@@ -1,7 +1,11 @@
 package com.workflow.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.io.Serial;
 import java.io.Serializable;
@@ -15,8 +19,11 @@ import java.util.stream.Collectors;
  * 定义一个DAG工作流的结构，包含节点、边和全局配置
  * </p>
  */
-@Data
+@Getter
+@Setter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class WorkflowDefinition implements Serializable {
 
     @Serial
@@ -99,13 +106,16 @@ public class WorkflowDefinition implements Serializable {
     private String updatedBy;
 
     /**
-     * JGraphT图结构（不序列化）
+     * JGraphT图结构（使用DefaultEdge作为内部边类型）
+     * 注意：这里不使用我们的Edge类，因为JGraphT创建边实例时会有equals/hashCode问题
      */
-    private transient org.jgrapht.graph.DefaultDirectedGraph<Node, Edge> graph;
+    @JsonIgnore
+    private transient org.jgrapht.graph.DefaultDirectedGraph<Node, org.jgrapht.graph.DefaultEdge> graph;
 
     /**
      * 节点ID到节点的映射（不序列化）
      */
+    @JsonIgnore
     private transient Map<String, Node> nodeMap;
 
     /**
@@ -175,21 +185,27 @@ public class WorkflowDefinition implements Serializable {
      * 构建JGraphT图结构
      */
     public void buildGraph() {
-        // 创建默认有向图
-        graph = new org.jgrapht.graph.DefaultDirectedGraph<>(Edge.class);
+        // 使用DefaultEdge作为边类型，避免自定义Edge类的equals/hashCode问题
+        graph = new org.jgrapht.graph.DefaultDirectedGraph<>(org.jgrapht.graph.DefaultEdge.class);
 
         // 添加所有节点
         nodeMap = new HashMap<>();
-        for (Node node : nodes) {
-            graph.addVertex(node);
-            nodeMap.put(node.getId(), node);
+        if (nodes != null) {
+            for (Node node : nodes) {
+                graph.addVertex(node);
+                nodeMap.put(node.getId(), node);
+            }
         }
 
         // 添加所有边
         if (edges != null) {
             for (Edge edge : edges) {
-                Node source = nodeMap.get(edge.getSourceNodeId());
-                Node target = nodeMap.get(edge.getTargetNodeId());
+                String sourceId = edge.getSourceNodeId();
+                String targetId = edge.getTargetNodeId();
+
+                Node source = nodeMap.get(sourceId);
+                Node target = nodeMap.get(targetId);
+
                 if (source != null && target != null) {
                     graph.addEdge(source, target);
                 }
@@ -207,7 +223,7 @@ public class WorkflowDefinition implements Serializable {
             buildGraph();
         }
 
-        org.jgrapht.alg.cycle.CycleDetector<Node, Edge> detector =
+        org.jgrapht.alg.cycle.CycleDetector<Node, org.jgrapht.graph.DefaultEdge> detector =
                 new org.jgrapht.alg.cycle.CycleDetector<>(graph);
 
         return detector.detectCycles();
@@ -223,7 +239,7 @@ public class WorkflowDefinition implements Serializable {
             buildGraph();
         }
 
-        org.jgrapht.alg.cycle.CycleDetector<Node, Edge> detector =
+        org.jgrapht.alg.cycle.CycleDetector<Node, org.jgrapht.graph.DefaultEdge> detector =
                 new org.jgrapht.alg.cycle.CycleDetector<>(graph);
 
         return detector.findCycles();
@@ -240,11 +256,15 @@ public class WorkflowDefinition implements Serializable {
         }
 
         List<Node> isolated = new ArrayList<>();
-        for (Node node : nodes) {
-            if (graph.inDegreeOf(node) == 0 && graph.outDegreeOf(node) == 0) {
-                // 单节点工作流不算孤立
-                if (nodes.size() > 1) {
-                    isolated.add(node);
+        if (nodes != null) {
+            for (Node node : nodes) {
+                if (graph.containsVertex(node)
+                        && graph.inDegreeOf(node) == 0
+                        && graph.outDegreeOf(node) == 0) {
+                    // 单节点工作流不算孤立
+                    if (nodes.size() > 1) {
+                        isolated.add(node);
+                    }
                 }
             }
         }
@@ -261,9 +281,13 @@ public class WorkflowDefinition implements Serializable {
             buildGraph();
         }
 
-        return nodes.stream()
-                .filter(node -> graph.inDegreeOf(node) == 0)
-                .collect(Collectors.toList());
+        List<Node> startNodes = new ArrayList<>();
+        for (Node node : graph.vertexSet()) {
+            if (graph.inDegreeOf(node) == 0) {
+                startNodes.add(node);
+            }
+        }
+        return startNodes;
     }
 
     /**
@@ -276,47 +300,53 @@ public class WorkflowDefinition implements Serializable {
             buildGraph();
         }
 
-        return nodes.stream()
-                .filter(node -> graph.outDegreeOf(node) == 0)
-                .collect(Collectors.toList());
+        List<Node> endNodes = new ArrayList<>();
+        for (Node node : graph.vertexSet()) {
+            if (graph.outDegreeOf(node) == 0) {
+                endNodes.add(node);
+            }
+        }
+        return endNodes;
     }
 
     /**
-     * 获取节点的所有出边
+     * 获取节点的所有出边（返回原始Edge对象）
      *
      * @param nodeId 节点ID
      * @return 出边列表
      */
     public List<Edge> getOutEdges(String nodeId) {
-        if (graph == null || nodeMap == null) {
-            buildGraph();
-        }
-
-        Node node = nodeMap.get(nodeId);
-        if (node == null) {
+        if (edges == null) {
             return Collections.emptyList();
         }
 
-        return new ArrayList<>(graph.outgoingEdgesOf(node));
+        List<Edge> result = new ArrayList<>();
+        for (Edge edge : edges) {
+            if (edge.getSourceNodeId().equals(nodeId)) {
+                result.add(edge);
+            }
+        }
+        return result;
     }
 
     /**
-     * 获取节点的所有入边
+     * 获取节点的所有入边（返回原始Edge对象）
      *
      * @param nodeId 节点ID
      * @return 入边列表
      */
     public List<Edge> getInEdges(String nodeId) {
-        if (graph == null || nodeMap == null) {
-            buildGraph();
-        }
-
-        Node node = nodeMap.get(nodeId);
-        if (node == null) {
+        if (edges == null) {
             return Collections.emptyList();
         }
 
-        return new ArrayList<>(graph.incomingEdgesOf(node));
+        List<Edge> result = new ArrayList<>();
+        for (Edge edge : edges) {
+            if (edge.getTargetNodeId().equals(nodeId)) {
+                result.add(edge);
+            }
+        }
+        return result;
     }
 
     /**
@@ -467,7 +497,7 @@ public class WorkflowDefinition implements Serializable {
      *
      * @return JGraphT图对象
      */
-    public org.jgrapht.Graph<Node, Edge> getGraph() {
+    public org.jgrapht.Graph<Node, org.jgrapht.graph.DefaultEdge> getGraph() {
         if (graph == null) {
             buildGraph();
         }

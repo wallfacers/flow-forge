@@ -64,9 +64,12 @@ class WorkflowDefinitionTest {
             }
             """;
 
+        // 使用不带验证的解析，然后手动验证
+        WorkflowDefinition definition = parser.parse(json, false);
+
         WorkflowValidationException exception = assertThrows(
                 WorkflowValidationException.class,
-                () -> parser.parse(json)
+                definition::validate
         );
 
         assertTrue(exception.getMessage().contains("cycle"));
@@ -90,9 +93,12 @@ class WorkflowDefinitionTest {
             }
             """;
 
+        // 使用不带验证的解析，然后手动验证
+        WorkflowDefinition definition = parser.parse(json, false);
+
         WorkflowValidationException exception = assertThrows(
                 WorkflowValidationException.class,
-                () -> parser.parse(json)
+                definition::validate
         );
 
         assertTrue(exception.getMessage().contains("isolated"));
@@ -186,15 +192,51 @@ class WorkflowDefinitionTest {
     @DisplayName("应该支持所有节点类型")
     void shouldSupportAllNodeTypes() throws Exception {
         for (NodeType type : NodeType.values()) {
-            String json = String.format("""
-                {
-                  "id": "wf-type-%s",
-                  "name": "%s类型测试",
-                  "nodes": [
-                    {"id": "node1", "name": "测试节点", "type": "%s"}
-                  ]
-                }
-                """, type.getCode(), type.getDescription(), type.getCode());
+            String json;
+            if (type == NodeType.HTTP) {
+                // HTTP节点需要url配置
+                json = String.format("""
+                    {
+                      "id": "wf-type-%s",
+                      "name": "%s类型测试",
+                      "nodes": [
+                        {"id": "node1", "name": "测试节点", "type": "%s", "config": {"url": "http://example.com"}}
+                      ]
+                    }
+                    """, type.getCode(), type.getDescription(), type.getCode());
+            } else if (type == NodeType.SCRIPT) {
+                // SCRIPT节点需要code配置
+                json = String.format("""
+                    {
+                      "id": "wf-type-%s",
+                      "name": "%s类型测试",
+                      "nodes": [
+                        {"id": "node1", "name": "测试节点", "type": "%s", "config": {"code": "console.log('test')"}}
+                      ]
+                    }
+                    """, type.getCode(), type.getDescription(), type.getCode());
+            } else if (type == NodeType.IF) {
+                // IF节点需要condition配置
+                json = String.format("""
+                    {
+                      "id": "wf-type-%s",
+                      "name": "%s类型测试",
+                      "nodes": [
+                        {"id": "node1", "name": "测试节点", "type": "%s", "config": {"condition": "true"}}
+                      ]
+                    }
+                    """, type.getCode(), type.getDescription(), type.getCode());
+            } else {
+                json = String.format("""
+                    {
+                      "id": "wf-type-%s",
+                      "name": "%s类型测试",
+                      "nodes": [
+                        {"id": "node1", "name": "测试节点", "type": "%s"}
+                      ]
+                    }
+                    """, type.getCode(), type.getDescription(), type.getCode());
+            }
 
             assertDoesNotThrow(() -> parser.parse(json),
                     "应该支持节点类型: " + type);

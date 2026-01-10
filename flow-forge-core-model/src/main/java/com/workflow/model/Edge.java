@@ -2,8 +2,10 @@ package com.workflow.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 /**
  * 工作流边模型
@@ -11,25 +13,30 @@ import lombok.NoArgsConstructor;
  * 定义DAG中节点之间的连接关系，支持条件分支
  * </p>
  */
-@Data
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Edge {
 
     /**
      * 边的唯一标识符（可选）
      */
+    @EqualsAndHashCode.Include
     private String id;
 
     /**
      * 源节点ID
      */
+    @EqualsAndHashCode.Include
     private String sourceNodeId;
 
     /**
      * 目标节点ID
      */
+    @EqualsAndHashCode.Include
     private String targetNodeId;
 
     /**

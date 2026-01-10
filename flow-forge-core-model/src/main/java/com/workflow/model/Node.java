@@ -3,7 +3,10 @@ package com.workflow.model;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -16,15 +19,18 @@ import java.util.Map;
  * 定义DAG中的单个节点，包含节点ID、名称、类型和配置
  * </p>
  */
-@Data
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Node {
 
     /**
      * 节点唯一标识符
      */
+    @EqualsAndHashCode.Include
     private String id;
 
     /**
