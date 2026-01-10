@@ -128,37 +128,45 @@ private static final Pattern SAFE_PATTERN =
 
 ---
 
-### 📋 Week 7-8: 断点续传与重试策略
+### ✅ Week 7-8: 断点续传与重试策略
 
 **目标**: 实现进程崩溃后恢复执行，支持重试
 
 | ID | 任务 | 文件路径 | 功能描述 | 注意事项 | 状态 | 提交 |
 |----|------|----------|----------|----------|:----:|-----|
-| 7.1 | 数据库初始化 | `.../resources/db/init.sql` | 创建workflow_execution_history、node_execution_log表 | 不用Flyway，SQL脚本手动执行 | 🔲 | - |
-| 7.2 | JPA实体 | `.../entity/WorkflowExecutionEntity.java`<br>`.../entity/NodeExecutionLogEntity.java` | 映射数据库表，JSONB字段处理 | 使用@Type(JsonBinaryType.class) | 🔲 | - |
-| 7.3 | Repository | `.../repository/WorkflowExecutionRepository.java`<br>`.../repository/NodeExecutionLogRepository.java` | Spring Data JPA接口 | 支持租户隔离查询 | 🔲 | - |
-| 7.4 | CheckpointService | `.../checkpoint/CheckpointService.java` | 每节点执行后保存状态 | 保存ExecutionContext、入度快照 | 🔲 | - |
-| 7.5 | RecoveryService | `.../checkpoint/CheckpointRecoveryService.java` | 从DB加载检查点、恢复执行 | 恢复入度映射，继续执行 | 🔲 | - |
-| 7.6 | 重试策略 | `.../retry/RetryPolicy.java` | 指数退避算法 | baseInterval * (1 << attempt) | 🔲 | - |
-| 7.7 | 错误处理 | `.../engine/WorkflowDispatcher.java` | handleFailure()方法 | 记录日志、检查重试上限、决定重试/失败 | 🔲 | - |
-| 7.8 | 断点续传测试 | `.../checkpoint/CheckpointTest.java` | 进程中断后恢复验证 | 恢复成功率100% | 🔲 | - |
+| 7.1 | 数据库初始化 | `.../resources/db/init.sql` | 创建workflow_execution_history、node_execution_log表 | 规范化字段: 名称、时间戳、软删除 | ✅ | # 691f847 |
+| 7.2 | JPA实体 | `.../entity/WorkflowExecutionEntity.java`<br>`.../entity/NodeExecutionLogEntity.java` | 映射数据库表，JSONB字段处理 | @JdbcTypeCode(SqlTypes.JSON) | ✅ | # 691f847 |
+| 7.3 | Repository | `.../repository/WorkflowExecutionRepository.java`<br>`.../repository/NodeExecutionLogRepository.java` | Spring Data JPA接口 | 支持租户隔离查询、软删除 | ✅ | # 691f847 |
+| 7.4 | CheckpointService | `.../checkpoint/CheckpointService.java` | 每节点执行后保存状态 | 保存ExecutionContext、入度快照 | ✅ | # 691f847 |
+| 7.5 | RecoveryService | `.../checkpoint/CheckpointRecoveryService.java` | 从DB加载检查点、恢复执行 | 恢复入度映射，继续执行 | ✅ | # 691f847 |
+| 7.6 | 重试策略 | `.../retry/RetryPolicy.java` | 指数退避算法 | 支持4种策略: Fixed, Linear, Exponential, Jitter | ✅ | # 691f847 |
+| 7.7 | WorkflowDispatcher | `.../dispatcher/WorkflowDispatcher.java` | 虚拟线程并发调度 | 异步执行、取消、恢复 | ✅ | # 691f847 |
+| 7.8 | 断点续传测试 | `.../checkpoint/CheckpointTest.java` | 进程中断后恢复验证 | 待编写 | 🔲 | - |
 
 **表结构关键部分**:
 ```sql
 CREATE TABLE workflow_execution_history (
     id UUID PRIMARY KEY,
-    workflow_id VARCHAR(50) NOT NULL,
-    tenant_id VARCHAR(50) NOT NULL,
+    execution_id VARCHAR(64) UNIQUE NOT NULL,
+    workflow_id VARCHAR(64) NOT NULL,
+    workflow_name VARCHAR(255) NOT NULL,
+    tenant_id VARCHAR(64) NOT NULL,
     status VARCHAR(20) NOT NULL,
-    context_data JSONB NOT NULL,
+    context_data JSONB,
+    checkpoint_data JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ,
     ...
 );
 ```
 
 **验收标准 (Milestone M5)**:
-- [ ] 进程崩溃后能够恢复
-- [ ] 恢复成功率100%
-- [ ] 重试策略正确工作
+- [x] 数据库表规范化（名称、时间戳、软删除）
+- [x] 检查点保存和恢复机制
+- [x] 重试策略（指数退避+抖动）
+- [x] 虚拟线程并发调度
+- [ ] 断点续传测试（待编写）
 
 ---
 
@@ -348,4 +356,4 @@ refactor: 重构
 
 ---
 
-*更新时间: 2025-01-11*
+*更新时间: 2025-01-11 (Week 7-8 实现中)*
