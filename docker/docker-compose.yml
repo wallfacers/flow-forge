@@ -12,8 +12,8 @@ services:
   # Flow-Forge 应用服务
   flow-forge:
     build:
-      context: ../..
-      dockerfile: flow-forge-api/src/main/docker/Dockerfile
+      context: ..
+      dockerfile: docker/Dockerfile
     container_name: flow-forge-app
     restart: unless-stopped
     ports:
