@@ -57,6 +57,7 @@ public class SpelEvaluator {
             Pattern.compile("\\.util\\."),                   // Util package access
             Pattern.compile("System\\."),                    // System class access
             Pattern.compile("Runtime\\."),                   // Runtime class access
+            Pattern.compile("\\.getRuntime\\("),             // getRuntime reflection
             Pattern.compile("ProcessBuilder\\."),            // ProcessBuilder access
             Pattern.compile("\\.exec\\("),                   // exec method
             Pattern.compile("\\.exit\\("),                   // exit method
