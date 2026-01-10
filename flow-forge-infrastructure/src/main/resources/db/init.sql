@@ -292,7 +292,134 @@ COMMENT ON COLUMN workflow_audit_log.performed_by IS '操作人标识';
 COMMENT ON COLUMN workflow_audit_log.performer_type IS '操作人类型: SYSTEM, USER, API';
 
 -- ============================================
--- 6. 初始化数据 (可选)
+-- 6. Webhook 注册表
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS webhook_registration (
+    -- 主键
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    -- 租户隔离
+    tenant_id               VARCHAR(64) NOT NULL,
+    -- 工作流关联
+    workflow_id             VARCHAR(64) NOT NULL,
+    workflow_name           VARCHAR(255),
+    -- Webhook 配置
+    webhook_path            VARCHAR(255) NOT NULL UNIQUE,  -- /webhook/{path}
+    secret_key              VARCHAR(255),                  -- HMAC 签名密钥
+    -- 配置选项
+    enabled                 BOOLEAN NOT NULL DEFAULT TRUE,
+    -- 请求头映射 (可选: 将请求头映射到工作流输入)
+    header_mapping          JSONB,
+    -- 统计信息
+    total_triggers          BIGINT NOT NULL DEFAULT 0,
+    successful_triggers     BIGINT NOT NULL DEFAULT 0,
+    failed_triggers         BIGINT NOT NULL DEFAULT 0,
+    last_triggered_at       TIMESTAMPTZ,
+    last_trigger_status     VARCHAR(20),                  -- SUCCESS, FAILED
+    -- 标准字段
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at              TIMESTAMPTZ
+);
+
+-- 创建索引
+CREATE INDEX IF NOT EXISTS idx_webhook_tenant_id ON webhook_registration(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_workflow_id ON webhook_registration(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_path ON webhook_registration(webhook_path);
+CREATE INDEX IF NOT EXISTS idx_webhook_enabled ON webhook_registration(enabled);
+CREATE INDEX IF NOT EXISTS idx_webhook_deleted_at ON webhook_registration(deleted_at) WHERE deleted_at IS NULL;
+
+-- 添加注释
+COMMENT ON TABLE webhook_registration IS 'Webhook触发器注册表';
+COMMENT ON COLUMN webhook_registration.webhook_path IS 'Webhook路径 (唯一标识)';
+COMMENT ON COLUMN webhook_registration.secret_key IS 'HMAC签名密钥 (用于验证请求来源)';
+COMMENT ON COLUMN webhook_registration.header_mapping IS '请求头映射配置';
+
+-- webhook 更新触发器
+CREATE OR REPLACE FUNCTION update_webhook_registration_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_update_webhook_updated_at ON webhook_registration;
+CREATE TRIGGER trigger_update_webhook_updated_at
+    BEFORE UPDATE ON webhook_registration
+    FOR EACH ROW
+    EXECUTE FUNCTION update_webhook_registration_updated_at();
+
+-- ============================================
+-- 7. Cron 触发器配置表
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS cron_trigger (
+    -- 主键
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    -- 租户隔离
+    tenant_id               VARCHAR(64) NOT NULL,
+    -- 工作流关联
+    workflow_id             VARCHAR(64) NOT NULL,
+    workflow_name           VARCHAR(255),
+    -- Cron 表达式配置
+    cron_expression         VARCHAR(100) NOT NULL,        -- 标准Cron表达式: "0 0 * * * ?"
+    timezone                VARCHAR(50) NOT NULL DEFAULT 'Asia/Shanghai',
+    -- PowerJob 任务ID (创建后返回)
+    powerjob_job_id         BIGINT,
+    -- 执行配置
+    input_data              JSONB,                        -- 每次执行的固定输入
+    misfire_strategy        VARCHAR(20) NOT NULL DEFAULT 'FIRE',  -- MISFIRE策略: FIRE, SKIP, ONCE
+    -- 配置选项
+    enabled                 BOOLEAN NOT NULL DEFAULT TRUE,
+    description             VARCHAR(500),
+    -- 统计信息
+    total_triggers          BIGINT NOT NULL DEFAULT 0,
+    successful_triggers     BIGINT NOT NULL DEFAULT 0,
+    failed_triggers         BIGINT NOT NULL DEFAULT 0,
+    last_triggered_at       TIMESTAMPTZ,
+    next_trigger_time       TIMESTAMPTZ,
+    last_trigger_status     VARCHAR(20),                  -- SUCCESS, FAILED
+    -- 标准字段
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at              TIMESTAMPTZ,
+    -- 唯一约束
+    CONSTRAINT uk_cron_workflow UNIQUE (tenant_id, workflow_id, deleted_at)
+);
+
+-- 创建索引
+CREATE INDEX IF NOT EXISTS idx_cron_tenant_id ON cron_trigger(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_cron_workflow_id ON cron_trigger(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_cron_enabled ON cron_trigger(enabled);
+CREATE INDEX IF NOT EXISTS idx_cron_powerjob_job_id ON cron_trigger(powerjob_job_id);
+CREATE INDEX IF NOT EXISTS idx_cron_deleted_at ON cron_trigger(deleted_at) WHERE deleted_at IS NULL;
+
+-- 添加注释
+COMMENT ON TABLE cron_trigger IS 'Cron定时触发器配置表';
+COMMENT ON COLUMN cron_trigger.cron_expression IS 'Cron表达式 (秒 分 时 日 月 周 年)';
+COMMENT ON COLUMN cron_trigger.timezone IS '时区';
+COMMENT ON COLUMN cron_trigger.powerjob_job_id IS 'PowerJob任务ID';
+COMMENT ON COLUMN cron_trigger.misfire_strategy IS '错失触发策略: FIRE(立即执行) SKIP(跳过) ONCE(执行一次)';
+COMMENT ON COLUMN cron_trigger.input_data IS '每次执行的固定输入数据';
+
+-- cron_trigger 更新触发器
+CREATE OR REPLACE FUNCTION update_cron_trigger_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_update_cron_trigger_updated_at ON cron_trigger;
+CREATE TRIGGER trigger_update_cron_trigger_updated_at
+    BEFORE UPDATE ON cron_trigger
+    FOR EACH ROW
+    EXECUTE FUNCTION update_cron_trigger_updated_at();
+
+-- ============================================
+-- 8. 初始化数据 (可选)
 -- ============================================
 
 -- 可以在这里插入一些初始化数据，如示例工作流等

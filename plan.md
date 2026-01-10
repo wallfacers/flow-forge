@@ -170,7 +170,7 @@ CREATE TABLE workflow_execution_history (
 
 ---
 
-### 📋 Week 9: 触发器
+### 🔄 Week 9: 触发器
 
 **目标**: 实现Webhook和Cron触发器
 

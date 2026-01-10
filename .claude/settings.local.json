@@ -9,7 +9,8 @@
       "Bash(java:*)",
       "Bash(git restore:*)",
       "Bash(git stash:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "WebSearch"
     ],
     "language": "zh-CN"
   },
