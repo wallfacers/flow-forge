@@ -98,3 +98,4 @@ lombok.config
 generatorConfig.xml
 
 docker/.env
+.claude/settings.local.json
