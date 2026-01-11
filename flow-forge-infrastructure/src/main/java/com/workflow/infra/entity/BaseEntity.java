@@ -1,6 +1,7 @@
 package com.workflow.infra.entity;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -22,6 +23,7 @@ public abstract class BaseEntity {
     /**
      * 主键ID，使用 UUID
      */
+    @Id
     protected UUID id;
 
     /**
