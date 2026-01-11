@@ -3,6 +3,7 @@ package com.workflow.api;
 import org.springframework.boot.Banner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 import java.io.PrintStream;
@@ -31,6 +32,7 @@ import java.io.PrintStream;
  * </pre>
  */
 @SpringBootApplication(scanBasePackages = "com.workflow")
+@EntityScan(basePackages = "com.workflow.infra.entity")
 @EnableJpaRepositories(basePackages = "com.workflow.infra.repository")
 public class FlowForgeApplication {
 
