@@ -5,6 +5,7 @@ import com.workflow.model.Node;
 import com.workflow.model.WorkflowDefinition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,6 +24,7 @@ import java.util.stream.Collectors;
  * 4. 当节点入度变为0时，该节点可以被调度执行
  * </p>
  */
+@Component
 public class InDegreeScheduler {
 
     private static final Logger logger = LoggerFactory.getLogger(InDegreeScheduler.class);
