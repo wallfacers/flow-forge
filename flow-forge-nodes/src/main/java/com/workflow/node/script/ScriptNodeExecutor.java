@@ -113,10 +113,10 @@ public class ScriptNodeExecutor extends AbstractNodeExecutor {
 
         } catch (WorkflowException e) {
             logger.error("Script execution failed: nodeId={}", nodeId, e);
-            return NodeResult.failure(nodeId, e.getMessage());
+            return NodeResult.failure(nodeId, "Script execution failed");
         } catch (Exception e) {
             logger.error("Script execution error: nodeId={}", nodeId, e);
-            return NodeResult.failure(nodeId, "Script execution error: " + e.getMessage());
+            return NodeResult.failure(nodeId, "Script execution error");
         }
     }
 

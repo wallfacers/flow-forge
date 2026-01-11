@@ -126,8 +126,9 @@ public class HttpNodeExecutor extends AbstractNodeExecutor {
                     "HTTP request failed with status " + e.getStatusCode().value());
 
         } catch (Exception e) {
+            // 记录详细错误日志，但返回通用错误消息避免暴露敏感信息
             logger.error("HTTP request execution failed: {} {} (node: {})", method, url, nodeId, e);
-            return NodeResult.failure(nodeId, "HTTP request failed: " + e.getMessage());
+            return NodeResult.failure(nodeId, "HTTP request failed");
         }
     }
 

@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Value;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -88,17 +89,17 @@ public class WebhookTriggerService {
                 .orElseThrow(() -> new WorkflowValidationException("Webhook不存在: " + id));
 
         // 验证租户
-        if (!entity.getTenantId().equals(tenantId)) {
+        if (!tenantId.equals(entity.getTenantId())) {
             throw new WorkflowValidationException("无权操作此Webhook");
         }
 
         // 验证 Webhook 路径（如果修改了路径）
-        if (!entity.getWebhookPath().equals(request.getWebhookPath())) {
+        if (!Objects.equals(entity.getWebhookPath(), request.getWebhookPath())) {
             validateWebhookPath(request.getWebhookPath());
         }
 
         // 检查路径是否被其他记录占用
-        if (!entity.getWebhookPath().equals(request.getWebhookPath())) {
+        if (!Objects.equals(entity.getWebhookPath(), request.getWebhookPath())) {
             if (webhookRepository.existsByWebhookPathAndDeletedAtIsNull(request.getWebhookPath())) {
                 throw new WorkflowValidationException("Webhook路径已存在: " + request.getWebhookPath());
             }
@@ -128,7 +129,7 @@ public class WebhookTriggerService {
         WebhookRegistrationEntity entity = webhookRepository.findById(id)
                 .orElseThrow(() -> new WorkflowValidationException("Webhook不存在: " + id));
 
-        if (!entity.getTenantId().equals(tenantId)) {
+        if (!tenantId.equals(entity.getTenantId())) {
             throw new WorkflowValidationException("无权操作此Webhook");
         }
 
@@ -144,7 +145,7 @@ public class WebhookTriggerService {
         WebhookRegistrationEntity entity = webhookRepository.findById(id)
                 .orElseThrow(() -> new WorkflowValidationException("Webhook不存在: " + id));
 
-        if (!entity.getTenantId().equals(tenantId)) {
+        if (!tenantId.equals(entity.getTenantId())) {
             throw new WorkflowValidationException("无权访问此Webhook");
         }
 
@@ -254,7 +255,7 @@ public class WebhookTriggerService {
         WebhookRegistrationEntity entity = webhookRepository.findById(id)
                 .orElseThrow(() -> new WorkflowValidationException("Webhook不存在: " + id));
 
-        if (!entity.getTenantId().equals(tenantId)) {
+        if (!tenantId.equals(entity.getTenantId())) {
             throw new WorkflowValidationException("无权操作此Webhook");
         }
 
@@ -271,7 +272,7 @@ public class WebhookTriggerService {
         WebhookRegistrationEntity entity = webhookRepository.findById(id)
                 .orElseThrow(() -> new WorkflowValidationException("Webhook不存在: " + id));
 
-        if (!entity.getTenantId().equals(tenantId)) {
+        if (!tenantId.equals(entity.getTenantId())) {
             throw new WorkflowValidationException("无权操作此Webhook");
         }
 

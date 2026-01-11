@@ -417,8 +417,8 @@ public class VariableResolver {
             return null;
         }
 
-        if (value instanceof String) {
-            String strValue = (String) value;
+        // 使用 Java 21 模式匹配
+        if (value instanceof String strValue) {
             // 检查是否包含变量引用
             if (strValue.contains("{{")) {
                 // 尝试解析为表达式
@@ -435,14 +435,13 @@ public class VariableResolver {
             return value;
         }
 
-        if (value instanceof Map) {
+        if (value instanceof Map<?, ?> map) {
             @SuppressWarnings("unchecked")
-            Map<String, Object> map = (Map<String, Object>) value;
-            return resolveMap(map, context);
+            Map<String, Object> stringKeyMap = (Map<String, Object>) map;
+            return resolveMap(stringKeyMap, context);
         }
 
-        if (value instanceof List) {
-            List<Object> list = (List<Object>) value;
+        if (value instanceof List<?> list) {
             List<Object> result = new ArrayList<>(list.size());
             for (Object item : list) {
                 result.add(resolveValue(item, context));

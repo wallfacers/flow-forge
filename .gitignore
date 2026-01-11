@@ -96,3 +96,5 @@ lombok.config
 
 # MyBatis
 generatorConfig.xml
+
+docker/.env

@@ -70,6 +70,31 @@ public class GraalSandbox implements AutoCloseable {
      */
     private static final AtomicBoolean SHUTDOWN = new AtomicBoolean(false);
 
+    // 静态初始化：注册 JVM 关闭钩子
+    static {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            logger.info("JVM shutdown hook triggered, closing GraalSandbox resources");
+            if (SHUTDOWN.compareAndSet(false, true)) {
+                PLATFORM_EXECUTOR.shutdown();
+                try {
+                    if (!PLATFORM_EXECUTOR.awaitTermination(5, TimeUnit.SECONDS)) {
+                        logger.warn("Platform executor did not terminate gracefully, forcing shutdown");
+                        PLATFORM_EXECUTOR.shutdownNow();
+                        if (!PLATFORM_EXECUTOR.awaitTermination(5, TimeUnit.SECONDS)) {
+                            logger.error("Platform executor did not terminate after forced shutdown");
+                        }
+                    } else {
+                        logger.info("Platform executor terminated gracefully");
+                    }
+                } catch (InterruptedException e) {
+                    PLATFORM_EXECUTOR.shutdownNow();
+                    Thread.currentThread().interrupt();
+                    logger.warn("Platform executor shutdown interrupted");
+                }
+            }
+        }, "GraalSandbox-ShutdownHook"));
+    }
+
     private final Engine engine;
     private final Context context;
     private final HostAccessExports hostExports;

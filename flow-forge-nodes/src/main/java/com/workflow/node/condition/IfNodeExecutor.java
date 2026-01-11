@@ -79,21 +79,21 @@ public class IfNodeExecutor extends AbstractNodeExecutor {
         try {
             result = spelEvaluator.evaluate(condition, context);
         } catch (WorkflowException e) {
-            // Check if it's a security violation (should propagate)
+            // 检查是否为安全违规（应传播异常）
             String message = e.getMessage();
             if (message != null && (message.contains("security") ||
                 message.contains("not allowed") ||
                 message.contains("unsafe") ||
                 message.contains("dangerous"))) {
-                throw e;  // Security violations propagate
+                throw e;  // 安全违规应传播
             }
-            // Other WorkflowExceptions (parse errors) return failure result
+            // 其他 WorkflowException（解析错误）返回失败结果
             logger.error("Failed to evaluate condition in IF node {}: {}", nodeId, condition, e);
-            return NodeResult.failure(nodeId, "Condition evaluation failed: " + e.getMessage());
+            return NodeResult.failure(nodeId, "Condition evaluation failed");
         } catch (Exception e) {
-            // Other errors (runtime errors) return failure result
+            // 其他错误（运行时错误）返回失败结果
             logger.error("Failed to evaluate condition in IF node {}: {}", nodeId, condition, e);
-            return NodeResult.failure(nodeId, "Condition evaluation failed: " + e.getMessage());
+            return NodeResult.failure(nodeId, "Condition evaluation failed");
         }
 
         // Get optional true/false values

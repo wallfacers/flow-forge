@@ -249,28 +249,8 @@ flow-forge/
 
 ---
 
-## 开发状态
-
-| 里程碑 | 状态 |
-|--------|------|
-| M1: 核心模型 | ✅ 完成 |
-| M2: 基础节点 | ✅ 完成 |
-| M3: 脚本沙箱 | ✅ 完成 |
-| M4: 条件分支 | ✅ 完成 |
-| M5: 断点续传 | ✅ 完成 |
-| M6: 触发器 | ✅ 完成 |
-| M7: 可视化 API | ✅ 完成 |
-| M8: Docker 部署 | ✅ 完成 |
-
----
-
 ## 许可证
 
 Apache License 2.0
 
 ---
-
-## 联系方式
-
-- 邮箱: support@workflow.com
-- Issues: https://github.com/your-org/flow-forge/issues

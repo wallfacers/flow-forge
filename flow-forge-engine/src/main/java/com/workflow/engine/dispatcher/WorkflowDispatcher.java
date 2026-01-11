@@ -461,6 +461,26 @@ public class WorkflowDispatcher {
                                   Map<String, AtomicInteger> inDegreeMap,
                                   String executionId) {
         // 保存节点开始日志
+        saveNodeStart(executionId, node, context);
+
+        // 执行节点（带重试）
+        NodeResult result = executeWithRetry(node, context);
+
+        // 保存节点完成日志
+        saveNodeComplete(executionId, node.getId(), result, inDegreeMap);
+
+        // 如果节点执行成功，触发后继节点
+        if (result.isSuccess()) {
+            processSuccessfulNode(node, definition, context, inDegreeMap, executionId, result);
+        }
+
+        return result;
+    }
+
+    /**
+     * 保存节点开始日志。
+     */
+    private void saveNodeStart(String executionId, Node node, ExecutionContext context) {
         checkpointService.saveNodeStart(
                 executionId,
                 node.getId(),
@@ -469,20 +489,23 @@ public class WorkflowDispatcher {
                 node.getConfig(),
                 context.getInput()
         );
+    }
 
-        // 获取节点执行器
+    /**
+     * 执行节点（带重试逻辑）。
+     *
+     * @return 执行结果
+     */
+    private NodeResult executeWithRetry(Node node, ExecutionContext context) {
         NodeExecutor executor = executorFactory.getExecutor(node.getType());
-
-        // 尝试执行（带重试）
-        int attempt = 0;
         NodeResult result = null;
 
-        while (attempt <= node.getRetryCount()) {
+        for (int attempt = 0; attempt <= node.getRetryCount(); attempt++) {
             try {
                 result = executor.execute(node, context);
 
                 if (result.isSuccess()) {
-                    break;
+                    return result;
                 }
 
                 // 检查是否需要重试
@@ -490,69 +513,93 @@ public class WorkflowDispatcher {
                 if (!decision.shouldRetry()) {
                     logger.warn("Node execution failed, not retrying: nodeId={}, reason={}",
                             node.getId(), decision.getReason());
-                    break;
+                    return result;
                 }
 
                 logger.info("Retrying node execution: nodeId={}, attempt={}, delay={}ms, reason={}",
                         node.getId(), attempt + 1, decision.getDelayMs(), decision.getReason());
 
                 // 延迟后重试
-                if (decision.getDelayMs() > 0) {
-                    try {
-                        Thread.sleep(decision.getDelayMs());
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        return NodeResult.failure(node.getId(), "Retry interrupted");
-                    }
-                }
+                applyRetryDelay(decision.getDelayMs());
 
             } catch (Exception e) {
                 logger.error("Node execution exception: nodeId={}, attempt={}",
                         node.getId(), attempt + 1, e);
                 result = NodeResult.failure(node.getId(), "Exception: " + e.getMessage());
 
-                // 检查异常类型是否可重试
                 if (attempt >= node.getRetryCount()) {
-                    break;
+                    return result;
                 }
             }
-
-            attempt++;
-        }
-
-        // 保存节点完成日志
-        Map<String, Integer> inDegreeSnapshot = inDegreeScheduler.createSnapshot(inDegreeMap);
-        checkpointService.saveNodeComplete(executionId, node.getId(), result, inDegreeSnapshot);
-
-        // 如果节点执行成功，触发后继节点
-        if (result.isSuccess()) {
-            // 将结果存入上下文
-            context.getNodeResults().put(node.getId(), result);
-
-            // 获取出边
-            List<Edge> outEdges = definition.getOutEdges(node.getId());
-
-            // 更新后继节点入度，触发就绪的后继节点
-            List<String> newReadyNodeIds = inDegreeScheduler.nodeCompleted(node.getId(), outEdges, inDegreeMap);
-
-            if (!newReadyNodeIds.isEmpty()) {
-                logger.debug("Node {} completed, triggering {} successors: {}",
-                        node.getId(), newReadyNodeIds.size(), newReadyNodeIds);
-
-                // 递归执行后继节点
-                for (String successorId : newReadyNodeIds) {
-                    Node successor = definition.getNode(successorId);
-                    if (successor != null) {
-                        executeNodeAsync(successor, definition, context, inDegreeMap, executionId);
-                    }
-                }
-            }
-
-            // 保存检查点
-            checkpointService.saveCheckpoint(executionId, inDegreeMap, context);
         }
 
         return result;
+    }
+
+    /**
+     * 应用重试延迟。
+     */
+    private void applyRetryDelay(long delayMs) {
+        if (delayMs > 0) {
+            try {
+                Thread.sleep(delayMs);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new WorkflowException("Retry interrupted", e);
+            }
+        }
+    }
+
+    /**
+     * 保存节点完成日志。
+     */
+    private void saveNodeComplete(String executionId, String nodeId, NodeResult result,
+                                   Map<String, AtomicInteger> inDegreeMap) {
+        Map<String, Integer> inDegreeSnapshot = inDegreeScheduler.createSnapshot(inDegreeMap);
+        checkpointService.saveNodeComplete(executionId, nodeId, result, inDegreeSnapshot);
+    }
+
+    /**
+     * 处理成功执行的节点：存储结果、触发后继节点、保存检查点。
+     */
+    private void processSuccessfulNode(Node node,
+                                      WorkflowDefinition definition,
+                                      ExecutionContext context,
+                                      Map<String, AtomicInteger> inDegreeMap,
+                                      String executionId,
+                                      NodeResult result) {
+        // 将结果存入上下文
+        context.getNodeResults().put(node.getId(), result);
+
+        // 触发后继节点
+        triggerSuccessorNodes(node, definition, context, inDegreeMap, executionId);
+
+        // 保存检查点
+        checkpointService.saveCheckpoint(executionId, inDegreeMap, context);
+    }
+
+    /**
+     * 触发后继节点执行。
+     */
+    private void triggerSuccessorNodes(Node node,
+                                      WorkflowDefinition definition,
+                                      ExecutionContext context,
+                                      Map<String, AtomicInteger> inDegreeMap,
+                                      String executionId) {
+        List<Edge> outEdges = definition.getOutEdges(node.getId());
+        List<String> newReadyNodeIds = inDegreeScheduler.nodeCompleted(node.getId(), outEdges, inDegreeMap);
+
+        if (!newReadyNodeIds.isEmpty()) {
+            logger.debug("Node {} completed, triggering {} successors: {}",
+                    node.getId(), newReadyNodeIds.size(), newReadyNodeIds);
+
+            for (String successorId : newReadyNodeIds) {
+                Node successor = definition.getNode(successorId);
+                if (successor != null) {
+                    executeNodeAsync(successor, definition, context, inDegreeMap, executionId);
+                }
+            }
+        }
     }
 
     /**
