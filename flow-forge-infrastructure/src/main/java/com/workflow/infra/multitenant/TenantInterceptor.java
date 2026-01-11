@@ -11,8 +11,17 @@ import org.springframework.web.servlet.HandlerInterceptor;
 /**
  * 租户拦截器
  * <p>
- * 从 HTTP 请求头中提取租户ID并设置到 TenantContext
- * 请求完成后自动清理 ThreadLocal，避免内存泄漏
+ * 从 HTTP 请求头中提取租户ID并设置到 TenantContext。
+ * 使用 ScopedValue 适配层（TenantContextHolder）管理请求生命周期中的租户ID。
+ * </p>
+ * <p>
+ * <b>工作原理：</b>
+ * <ul>
+ *   <li>请求到达：从 X-Tenant-ID 头提取租户ID并存储到 TenantContextHolder</li>
+ *   <li>请求处理：TenantContext.getTenantId() 从 Holder 读取租户ID</li>
+ *   <li>异步任务：使用 TenantContext.runWithTenant() 绑定 ScopedValue</li>
+ *   <li>请求完成：自动清理 Holder 中的租户ID</li>
+ * </ul>
  * </p>
  */
 @Component
