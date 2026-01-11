@@ -10,7 +10,6 @@ import com.workflow.model.ExecutionContext;
 import com.workflow.model.NodeResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 
 import java.util.*;
 import java.util.regex.Matcher;
@@ -28,7 +27,6 @@ import java.util.regex.Pattern;
  * - {{system.*}} 系统变量
  * </p>
  */
-@Component
 public class VariableResolver {
 
     private static final Logger logger = LoggerFactory.getLogger(VariableResolver.class);
