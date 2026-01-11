@@ -54,7 +54,15 @@ public enum NodeType {
     /**
      * 结束节点 - 工作流出口
      */
-    END("end", "Workflow End Node");
+    END("end", "Workflow End Node"),
+
+    /**
+     * 触发器节点 - 工作流入口触发器
+     * <p>
+     * 支持 WEBHOOK、CRON、MANUAL、EVENT 四种类型
+     * </p>
+     */
+    TRIGGER("trigger", "Workflow Trigger Node");
 
     private final String code;
     private final String description;

@@ -17,14 +17,14 @@ Flow-Forge 是一个功能强大的企业级 DAG（有向无环图）工作流�
 | 特性 | 说明 |
 |------|------|
 | **DAG 编排** | 基于 JGraphT 的 DAG 引擎，支持复杂的依赖关系管理 |
-| **多种节点类型** | HTTP、Log、Script、IF、Merge、Webhook、Wait 等节点 |
+| **多种节点类型** | HTTP、Log、Script、IF、Merge、Trigger、Webhook、Wait、Start、End 等节点 |
 | **变量解析** | 支持 `{{}}` 语法的上下文变量引用 |
 | **脚本执行** | 集成 GraalVM 沙箱，安全执行 JavaScript/Python 脚本 |
 | **断点续传** | 支持进程崩溃后从检查点恢复执行 |
 | **重试策略** | 内置多种重试策略（固定、线性、指数退避、抖动） |
 | **多租户** | 基于 ThreadLocal 的租户隔离机制 |
 | **可视化 API** | 提供 DAG 图数据和执行历史的可视化接口 |
-| **触发器** | 支持 Webhook 和 Cron 定时触发 |
+| **触发器** | 支持 Webhook（同步/异步）、Cron、手动、事件触发 |
 
 ---
 
@@ -182,6 +182,7 @@ flow-forge/
 
 | 节点类型 | 说明 | 配置示例 |
 |----------|------|----------|
+| **TRIGGER** | 工作流入口触发器 | `type`, `webhookPath`, `asyncMode` |
 | **HTTP** | 发起 HTTP 请求 | `url`, `method`, `headers`, `body` |
 | **LOG** | 输出日志 | `level`, `message` |
 | **SCRIPT** | 执行脚本 | `language`, `code` |
@@ -190,7 +191,7 @@ flow-forge/
 | **WEBHOOK** | Webhook 触发节点 | `timeout` |
 | **WAIT** | 等待外部回调 | `timeout` |
 | **START** | 工作流开始 | - |
-| **END** | 工作流结束 | - |
+| **END** | 工作流结束（支持输出聚合） | `aggregateOutputs` |
 
 更多节点详情请参阅 [节点使用指南](docs/nodes.md)。
 
@@ -213,6 +214,10 @@ flow-forge/
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
+| `/api/webhook/{path}` | POST | 触发 Webhook 工作流（支持 sync/async） |
+| `/api/webhook/{path}/config` | GET | 查询 Webhook 配置 |
+| `/api/triggers` | GET | 查询所有触发器 |
+| `/api/triggers/workflow/{workflowId}` | GET | 查询工作流触发器 |
 | `/api/executions` | GET | 获取执行历史列表 |
 | `/api/executions/{id}` | GET | 获取执行详情 |
 | `/api/executions/{id}/graph` | GET | 获取可视化图数据 |

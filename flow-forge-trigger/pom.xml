@@ -30,6 +30,12 @@
             <artifactId>flow-forge-infrastructure</artifactId>
         </dependency>
 
+        <!-- Engine (WorkflowDispatcher) -->
+        <dependency>
+            <groupId>com.workflow</groupId>
+            <artifactId>flow-forge-engine</artifactId>
+        </dependency>
+
         <!-- Nodes (WAIT node executor) -->
         <dependency>
             <groupId>com.workflow</groupId>

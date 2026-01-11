@@ -461,5 +461,78 @@ VALUES (1, '1.0.0', 'Initial schema: workflow_execution_history, node_execution_
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================
+-- 9. 触发器注册表 (统一管理所有类型触发器)
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS trigger_registry (
+    -- 主键
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    -- 工作流关联
+    workflow_id             VARCHAR(64) NOT NULL,
+    tenant_id               VARCHAR(64) NOT NULL,
+    -- 节点关联
+    node_id                 VARCHAR(64) NOT NULL,
+    -- 触发器类型: WEBHOOK, CRON, MANUAL, EVENT
+    trigger_type            VARCHAR(20) NOT NULL,
+    -- 触发器配置 (从 Node.config 冗余存储，便于快速查询)
+    trigger_config          JSONB NOT NULL,
+    -- 状态
+    enabled                 BOOLEAN NOT NULL DEFAULT TRUE,
+    -- 统计信息
+    total_triggers          BIGINT NOT NULL DEFAULT 0,
+    successful_triggers     BIGINT NOT NULL DEFAULT 0,
+    failed_triggers         BIGINT NOT NULL DEFAULT 0,
+    last_triggered_at       TIMESTAMPTZ,
+    last_trigger_status     VARCHAR(20),
+    -- Webhook 专用字段
+    webhook_path            VARCHAR(255) UNIQUE,
+    secret_key              VARCHAR(255),
+    -- Cron 专用字段
+    cron_expression         VARCHAR(100),
+    timezone                VARCHAR(50) DEFAULT 'Asia/Shanghai',
+    powerjob_job_id         BIGINT,
+    next_trigger_time       TIMESTAMPTZ,
+    -- 标准字段
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at              TIMESTAMPTZ
+);
+
+-- 创建索引
+CREATE INDEX IF NOT EXISTS idx_trigger_workflow_id ON trigger_registry(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_trigger_tenant_id ON trigger_registry(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_trigger_type ON trigger_registry(trigger_type);
+CREATE INDEX IF NOT EXISTS idx_trigger_node_id ON trigger_registry(node_id);
+CREATE INDEX IF NOT EXISTS idx_trigger_webhook_path ON trigger_registry(webhook_path) WHERE webhook_path IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_trigger_enabled ON trigger_registry(enabled);
+CREATE INDEX IF NOT EXISTS idx_trigger_deleted_at ON trigger_registry(deleted_at) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_trigger_tenant_workflow ON trigger_registry(tenant_id, workflow_id);
+
+-- 添加注释
+COMMENT ON TABLE trigger_registry IS '触发器注册表 (统一管理所有类型触发器)';
+COMMENT ON COLUMN trigger_registry.workflow_id IS '工作流ID';
+COMMENT ON COLUMN trigger_registry.node_id IS '触发器节点ID';
+COMMENT ON COLUMN trigger_registry.trigger_type IS '触发器类型: WEBHOOK, CRON, MANUAL, EVENT';
+COMMENT ON COLUMN trigger_registry.webhook_path IS 'Webhook路径 (仅WEBHOOK类型)';
+COMMENT ON COLUMN trigger_registry.secret_key IS 'HMAC签名密钥 (仅WEBHOOK类型)';
+COMMENT ON COLUMN trigger_registry.cron_expression IS 'Cron表达式 (仅CRON类型)';
+COMMENT ON COLUMN trigger_registry.powerjob_job_id IS 'PowerJob任务ID (仅CRON类型)';
+
+-- trigger_registry 更新触发器
+CREATE OR REPLACE FUNCTION update_trigger_registry_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_update_trigger_registry_updated_at ON trigger_registry;
+CREATE TRIGGER trigger_update_trigger_registry_updated_at
+    BEFORE UPDATE ON trigger_registry
+    FOR EACH ROW
+    EXECUTE FUNCTION update_trigger_registry_updated_at();
+
+-- ============================================
 -- 脚本结束
 -- ============================================

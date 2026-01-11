@@ -14,7 +14,9 @@
       "Bash(git rm:*)",
       "Bash(git revert:*)",
       "Bash(git remote add:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(del:*)",
+      "Bash(git reset:*)"
     ],
     "language": "zh-CN"
   },

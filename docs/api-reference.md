@@ -242,117 +242,209 @@ GET /api/executions/{executionId}/nodes/{nodeId}
 
 ## 触发器
 
-### Webhook 触发
-
-#### 注册 Webhook
-
-```http
-POST /api/webhooks/register
-```
-
-**请求体**：
-
-```json
-{
-  "workflowId": "workflow-001",
-  "callbackUrl": "https://myapp.com/callback",
-  "secret": "my-secret-key",
-  "description": "订单支付回调"
-}
-```
-
-**响应**：`201 Created`
-
-```json
-{
-  "webhookId": "wh-xyz789",
-  "workflowId": "workflow-001",
-  "webhookUrl": "/api/webhook/workflow-001",
-  "secret": "my-secret-key",
-  "createdAt": "2025-01-11T10:00:00Z"
-}
-```
+### Webhook 触发（重构版）
 
 #### 触发 Webhook
 
 ```http
-POST /api/webhook/{workflowId}
+POST /api/webhook/{webhookPath}
+```
+
+**请求头**：
+```
+Content-Type: application/json
+Prefer: wait=sync  // 可选，指定同步/异步模式
+X-Signature: <hmac-signature>  // 可选，如果配置了密钥
 ```
 
 **请求体**：任意 JSON 数据
 
 ```json
 {
-  "orderId": "12345",
+  "userId": "12345",
   "amount": 99.99,
   "status": "PAID"
 }
 ```
 
-**响应**：`202 Accepted`
+**同步模式响应**：`200 OK`
 
-#### Webhook 回调（WAIT 节点）
+```json
+{
+  "mode": "sync",
+  "executionId": "exec-abc123",
+  "success": true,
+  "workflowId": "workflow-001",
+  "duration": 1523,
+  "output": {
+    // END 节点的输出
+  },
+  "triggerNodeId": "webhook-entry",
+  "triggerType": "webhook"
+}
+```
+
+**异步模式响应**：`200 OK`
+
+```json
+{
+  "mode": "async",
+  "executionId": "exec-abc123",
+  "success": true,
+  "workflowId": "workflow-001"
+}
+```
+
+**错误响应**：`400 Bad Request`
+
+```json
+{
+  "mode": "async",
+  "success": false,
+  "error": "Webhook 未注册"
+}
+```
+
+#### 同步/异步模式
+
+| 请求头 | 执行模式 | 说明 |
+|--------|----------|------|
+| `Prefer: wait=sync` | 同步 | 等待工作流完成，返回 END 节点输出 |
+| `Prefer: wait=async` | 异步 | 立即返回 executionId |
+| (无) | 根据配置 | 使用节点配置的 asyncMode，默认异步 |
+
+#### 查询 Webhook 配置
 
 ```http
-POST /api/webhook/{executionId}/{nodeId}
+GET /api/webhook/{webhookPath}/config
 ```
-
-**请求头**：
-```
-X-Webhook-Secret: your-secret
-```
-
-**请求体**：任意 JSON 数据
 
 **响应**：`200 OK`
 
-### Cron 触发器
-
-#### 创建 Cron 触发器
-
-```http
-POST /api/triggers/cron
-```
-
-**请求体**：
-
 ```json
 {
+  "id": "uuid-123",
   "workflowId": "workflow-001",
-  "cronExpression": "0 0 * * * ?",
-  "description": "每小时执行",
-  "enabled": true
+  "nodeId": "webhook-entry",
+  "tenantId": "tenant-001",
+  "triggerType": "webhook",
+  "webhookPath": "github-push",
+  "enabled": true,
+  "totalTriggers": 1234,
+  "successfulTriggers": 1200,
+  "failedTriggers": 34,
+  "lastTriggeredAt": "2025-01-12T10:00:00Z",
+  "lastTriggerStatus": "SUCCESS",
+  "config": {
+    "type": "webhook",
+    "asyncMode": "sync",
+    "timeout": 30000
+  },
+  "createdAt": "2025-01-01T00:00:00Z",
+  "updatedAt": "2025-01-12T10:00:00Z"
 }
 ```
 
-**响应**：`201 Created`
+#### 查询所有 Webhook
+
+```http
+GET /api/webhook?tenantId={tenantId}
+```
+
+### 统一触发器查询
+
+#### 查询所有触发器
+
+```http
+GET /api/triggers?tenantId={tenantId}&type={type}
+```
+
+**查询参数**：
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| tenantId | string | 租户 ID 筛选 |
+| type | string | 触发器类型：webhook, cron, manual, event |
+
+**响应**：`200 OK`
+
+```json
+[
+  {
+    "id": "uuid-123",
+    "workflowId": "workflow-001",
+    "tenantId": "tenant-001",
+    "nodeId": "webhook-entry",
+    "triggerType": "webhook",
+    "enabled": true,
+    "totalTriggers": 1234,
+    "successfulTriggers": 1200,
+    "failedTriggers": 34,
+    "lastTriggeredAt": "2025-01-12T10:00:00Z",
+    "lastTriggerStatus": "SUCCESS",
+    "triggerConfig": {
+      "type": "webhook",
+      "webhookPath": "github-push",
+      "asyncMode": "sync"
+    },
+    "webhookPath": "github-push",
+    "hasSecretKey": true,
+    "cronExpression": "",
+    "timezone": "Asia/Shanghai",
+    "powerjobJobId": -1,
+    "nextTriggerTime": null,
+    "createdAt": "2025-01-01T00:00:00Z",
+    "updatedAt": "2025-01-12T10:00:00Z"
+  }
+]
+```
+
+#### 查询工作流触发器
+
+```http
+GET /api/triggers/workflow/{workflowId}
+```
+
+#### 获取触发器统计
+
+```http
+GET /api/triggers/stats?tenantId={tenantId}
+```
+
+**响应**：`200 OK`
 
 ```json
 {
-  "triggerId": "cron-001",
-  "workflowId": "workflow-001",
-  "cronExpression": "0 0 * * * ?",
-  "nextExecutionTime": "2025-01-11T11:00:00Z",
-  "enabled": true
+  "totalCount": 25,
+  "enabledCount": 20,
+  "disabledCount": 5,
+  "tenantId": "tenant-001"
 }
 ```
 
-#### 获取 Cron 触发器列表
+#### 启用/禁用触发器
 
 ```http
-GET /api/triggers/cron?workflowId=workflow-001
+POST /api/triggers/{id}/enable
+POST /api/triggers/{id}/disable
 ```
 
-#### 更新 Cron 触发器
+#### 重置统计信息
 
 ```http
-PUT /api/triggers/cron/{triggerId}
+POST /api/triggers/{id}/reset-stats
 ```
 
-#### 删除 Cron 触发器
+---
+
+## Cron 触发器（已迁移到 TRIGGER 节点）
+
+> **注意**：Cron 触发器现已通过 TRIGGER 节点配置，请使用统一触发器 API。
+
+### 创建 Cron 触发器（旧版，已废弃）
 
 ```http
-DELETE /api/triggers/cron/{triggerId}
+POST /api/triggers/cron  (已废弃)
 ```
 
 ---

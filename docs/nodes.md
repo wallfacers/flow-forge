@@ -6,6 +6,7 @@
 
 ## 目录
 
+- [TRIGGER 节点](#trigger-节点)
 - [HTTP 节点](#http-节点)
 - [LOG 节点](#log-节点)
 - [SCRIPT 节点](#script-节点)
@@ -14,6 +15,134 @@
 - [WEBHOOK 节点](#webhook-节点)
 - [WAIT 节点](#wait-节点)
 - [START/END 节点](#startend-节点)
+
+---
+
+## TRIGGER 节点
+
+工作流的入口触发器节点，支持多种触发方式。每个工作流有一个 TRIGGER 节点作为 DAG 的入口点（入度为 0）。
+
+### 支持的触发器类型
+
+| 类型 | 说明 | 配置参数 |
+|------|------|----------|
+| **webhook** | HTTP Webhook 触发 | `webhookPath`, `secretKey`, `asyncMode`, `timeout` |
+| **cron** | Cron 定时触发 | `cronExpression`, `timezone`, `inputData` |
+| **manual** | 手动触发 | `allowedRoles` |
+| **event** | 事件总线触发 | `eventType`, `filterExpression` |
+
+### Webhook 触发器配置
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| type | string | 是 | - | 触发器类型，固定为 `webhook` |
+| webhookPath | string | 是 | - | Webhook 路径，如 `github-webhook` |
+| secretKey | string | 否 | - | HMAC 签名密钥 |
+| asyncMode | string | 否 | async | 执行模式：`sync`（同步）或 `async`（异步） |
+| timeout | int | 否 | 30000 | 同步模式超时时间（毫秒） |
+| inputData | object | 否 | {} | 初始输入数据 |
+
+### 同步/异步模式
+
+**优先级**：HTTP 请求头 `Prefer` > 节点配置 `asyncMode` > 默认异步
+
+| 请求头 | 执行模式 | 说明 |
+|--------|----------|------|
+| `Prefer: wait=sync` | 同步 | 等待工作流完成，返回完整结果 |
+| `Prefer: wait=async` | 异步 | 立即返回 `executionId` |
+| (无) | 根据配置 | 默认异步 |
+
+### 配置示例
+
+#### Webhook 触发器（同步模式）
+
+```json
+{
+  "id": "webhook-entry",
+  "name": "GitHub Webhook 入口",
+  "type": "trigger",
+  "config": {
+    "type": "webhook",
+    "webhookPath": "github-push",
+    "secretKey": "hmac-secret-key",
+    "asyncMode": "sync",
+    "timeout": 30000
+  }
+}
+```
+
+#### Cron 触发器
+
+```json
+{
+  "id": "cron-entry",
+  "name": "每小时执行",
+  "type": "trigger",
+  "config": {
+    "type": "cron",
+    "cronExpression": "0 0 * * * ?",
+    "timezone": "Asia/Shanghai",
+    "inputData": {
+      "source": "scheduled"
+    }
+  }
+}
+```
+
+#### 手动触发器
+
+```json
+{
+  "id": "manual-entry",
+  "name": "手动触发",
+  "type": "trigger",
+  "config": {
+    "type": "manual",
+    "allowedRoles": ["admin", "operator"]
+  }
+}
+```
+
+#### 事件触发器
+
+```json
+{
+  "id": "event-entry",
+  "name": "用户创建事件",
+  "type": "trigger",
+  "config": {
+    "type": "event",
+    "eventType": "user.created",
+    "filterExpression": "{{.data.priority}} == 'high'"
+  }
+}
+```
+
+### 输出格式
+
+```json
+{
+  "triggerType": "webhook",
+  "triggeredAt": "2025-01-12T10:00:00Z",
+  "nodeId": "webhook-entry",
+  "input": {
+    // 触发器接收到的输入数据
+  },
+  "httpHeaders": {
+    // Webhook 特有：HTTP 请求头
+  },
+  "asyncMode": "sync"
+}
+```
+
+### API 端点
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/webhook/{webhookPath}` | POST | 触发 Webhook 工作流 |
+| `/api/webhook/{webhookPath}/config` | GET | 查询 Webhook 配置 |
+| `/api/triggers` | GET | 查询所有触发器 |
+| `/api/triggers/workflow/{workflowId}` | GET | 查询工作流触发器 |
 
 ---
 
@@ -397,14 +526,102 @@ X-Webhook-Secret: your-secret
 
 ### END 节点
 
-工作流的出口点，可标记最终状态。
+工作流的出口点，支持聚合多个上游节点的输出。
+
+### 配置参数
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| status | string | 否 | SUCCESS | 最终状态标记 |
+| aggregateOutputs | object | 否 | - | 输出聚合配置 |
+
+### 输出聚合配置
+
+`aggregateOutputs` 支持从多个上游节点收集并转换输出数据：
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| fromNodes | array/string | 源节点 ID 列表 |
+| transform | object | 输出转换映射，支持变量引用 |
+
+### 配置示例
+
+#### 基础配置
 
 ```json
 {
   "id": "end",
   "type": "end",
   "config": {
-    "status": "SUCCESS"  // 或 FAILED
+    "status": "SUCCESS"
+  }
+}
+```
+
+#### 带输出聚合
+
+```json
+{
+  "id": "end",
+  "type": "end",
+  "config": {
+    "aggregateOutputs": {
+      "result": {
+        "fromNodes": ["http-request", "data-process"],
+        "transform": {
+          "userId": "{{http-request.output.data.userId}}",
+          "profile": "{{data-process.output.profile}}",
+          "count": "{{data-process.output.count}}"
+        }
+      },
+      "metadata": {
+        "fromNodes": ["log-node"],
+        "transform": {
+          "loggedAt": "{{log-node.output.loggedAt}}"
+        }
+      }
+    }
+  }
+}
+```
+
+### 输出格式
+
+#### 无聚合配置
+
+```json
+{
+  "http-request": { /* 节点输出 */ },
+  "data-process": { /* 节点输出 */ },
+  "log-node": { /* 节点输出 */ },
+  "_metadata": {
+    "endNodeId": "end",
+    "workflowId": "workflow-001",
+    "totalNodes": 4,
+    "successCount": 4,
+    "failureCount": 0
+  }
+}
+```
+
+#### 有聚合配置
+
+```json
+{
+  "result": {
+    "userId": "12345",
+    "profile": { /* profile 数据 */ },
+    "count": 100
+  },
+  "metadata": {
+    "loggedAt": "2025-01-12T10:00:00Z"
+  },
+  "_metadata": {
+    "endNodeId": "end",
+    "workflowId": "workflow-001",
+    "totalNodes": 4,
+    "successCount": 4,
+    "failureCount": 0
   }
 }
 ```

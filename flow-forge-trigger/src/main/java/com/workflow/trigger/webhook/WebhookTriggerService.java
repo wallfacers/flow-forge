@@ -1,303 +1,326 @@
 package com.workflow.trigger.webhook;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.workflow.engine.WorkflowDefinitionService;
+import com.workflow.engine.dispatcher.WorkflowDispatcher;
+import com.workflow.infra.entity.TriggerRegistryEntity;
+import com.workflow.model.WorkflowDefinition;
 import com.workflow.model.WorkflowValidationException;
-import com.workflow.infra.entity.WebhookRegistrationEntity;
-import com.workflow.infra.repository.WebhookRegistrationRepository;
-import com.workflow.trigger.dto.WebhookRegistrationRequest;
-import com.workflow.trigger.dto.WebhookRegistrationResponse;
-import com.workflow.trigger.dto.WebhookRequest;
-import com.workflow.trigger.dto.WebhookTriggerResponse;
+import com.workflow.trigger.dto.WebhookExecutionResponse;
+import com.workflow.trigger.registry.TriggerRegistryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.beans.factory.annotation.Value;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
- * Webhook 触发器服务。
+ * Webhook 触发器服务（重构版）
  * <p>
- * 负责 Webhook 触发器的注册管理和请求处理。
+ * 基于 trigger_registry 表提供 Webhook 触发功能。
+ * <p>
+ * 支持同步/异步两种模式：
+ * <ul>
+ *   <li>同步模式：等待工作流执行完成，返回完整结果</li>
+ *   <li>异步模式：立即返回 executionId，后台执行</li>
+ * </ul>
+ * <p>
+ * 执行模式判断优先级：HTTP 请求头 Prefer > 节点配置 asyncMode > 默认异步
+ *
+ * @see TriggerRegistryService
+ * @see WorkflowDispatcher
  */
 @Service
 public class WebhookTriggerService {
 
     private static final Logger log = LoggerFactory.getLogger(WebhookTriggerService.class);
 
-    private final WebhookRegistrationRepository webhookRepository;
+    /** 同步执行默认超时时间（毫秒） */
+    private static final long DEFAULT_SYNC_TIMEOUT_MS = 30000;
+
+    /** 请求头：指定同步模式 */
+    private static final String HEADER_PREFER = "Prefer";
+    private static final String PREFER_WAIT_SYNC = "wait=sync";
+    private static final String PREFER_WAIT_ASYNC = "wait=async";
+
+    private final TriggerRegistryService registryService;
+    private final WorkflowDefinitionService workflowDefinitionService;
+    private final WorkflowDispatcher workflowDispatcher;
     private final ObjectMapper objectMapper;
-    private final String baseUrl;
 
-    public WebhookTriggerService(WebhookRegistrationRepository webhookRepository,
-                                  ObjectMapper objectMapper,
-                                  @Value("${webhook.base-url:/api/webhook}") String baseUrl) {
-        this.webhookRepository = webhookRepository;
+    public WebhookTriggerService(TriggerRegistryService registryService,
+                                  WorkflowDefinitionService workflowDefinitionService,
+                                  WorkflowDispatcher workflowDispatcher,
+                                  ObjectMapper objectMapper) {
+        this.registryService = registryService;
+        this.workflowDefinitionService = workflowDefinitionService;
+        this.workflowDispatcher = workflowDispatcher;
         this.objectMapper = objectMapper;
-        this.baseUrl = baseUrl;
-    }
-
-    /**
-     * 注册 Webhook 触发器
-     */
-    @Transactional
-    public WebhookRegistrationResponse registerWebhook(String tenantId, WebhookRegistrationRequest request) {
-        // 验证 Webhook 路径
-        validateWebhookPath(request.getWebhookPath());
-
-        // 检查路径是否已存在
-        if (webhookRepository.existsByWebhookPathAndDeletedAtIsNull(request.getWebhookPath())) {
-            throw new WorkflowValidationException("Webhook路径已存在: " + request.getWebhookPath());
-        }
-
-        // 检查工作流是否已注册
-        if (webhookRepository.existsByTenantIdAndWorkflowIdAndDeletedAtIsNull(tenantId, request.getWorkflowId())) {
-            throw new WorkflowValidationException("工作流已注册Webhook: " + request.getWorkflowId());
-        }
-
-        WebhookRegistrationEntity entity = new WebhookRegistrationEntity();
-        entity.setId(UUID.randomUUID());
-        entity.setTenantId(tenantId);
-        entity.setWorkflowId(request.getWorkflowId());
-        entity.setWorkflowName(request.getWorkflowName());
-        entity.setWebhookPath(request.getWebhookPath());
-        entity.setSecretKey(request.getSecretKey());
-        entity.setEnabled(request.getEnabled() != null ? request.getEnabled() : true);
-        entity.setHeaderMapping(request.getHeaderMapping());
-        entity.setTotalTriggers(0L);
-        entity.setSuccessfulTriggers(0L);
-        entity.setFailedTriggers(0L);
-
-        entity = webhookRepository.save(entity);
-        log.info("Registered webhook: tenantId={}, workflowId={}, path={}",
-                tenantId, request.getWorkflowId(), request.getWebhookPath());
-
-        return WebhookRegistrationResponse.fromEntity(entity, baseUrl);
-    }
-
-    /**
-     * 更新 Webhook 触发器
-     */
-    @Transactional
-    public WebhookRegistrationResponse updateWebhook(String tenantId, UUID id, WebhookRegistrationRequest request) {
-        WebhookRegistrationEntity entity = webhookRepository.findById(id)
-                .orElseThrow(() -> new WorkflowValidationException("Webhook不存在: " + id));
-
-        // 验证租户
-        if (!tenantId.equals(entity.getTenantId())) {
-            throw new WorkflowValidationException("无权操作此Webhook");
-        }
-
-        // 验证 Webhook 路径（如果修改了路径）
-        if (!Objects.equals(entity.getWebhookPath(), request.getWebhookPath())) {
-            validateWebhookPath(request.getWebhookPath());
-        }
-
-        // 检查路径是否被其他记录占用
-        if (!Objects.equals(entity.getWebhookPath(), request.getWebhookPath())) {
-            if (webhookRepository.existsByWebhookPathAndDeletedAtIsNull(request.getWebhookPath())) {
-                throw new WorkflowValidationException("Webhook路径已存在: " + request.getWebhookPath());
-            }
-            entity.setWebhookPath(request.getWebhookPath());
-        }
-
-        entity.setWorkflowId(request.getWorkflowId());
-        entity.setWorkflowName(request.getWorkflowName());
-        entity.setEnabled(request.getEnabled() != null ? request.getEnabled() : true);
-        entity.setHeaderMapping(request.getHeaderMapping());
-        if (request.getSecretKey() != null) {
-            entity.setSecretKey(request.getSecretKey());
-        }
-
-        entity = webhookRepository.save(entity);
-        log.info("Updated webhook: id={}, tenantId={}, workflowId={}",
-                id, tenantId, request.getWorkflowId());
-
-        return WebhookRegistrationResponse.fromEntity(entity, baseUrl);
-    }
-
-    /**
-     * 删除 Webhook 触发器（软删除）
-     */
-    @Transactional
-    public void deleteWebhook(String tenantId, UUID id) {
-        WebhookRegistrationEntity entity = webhookRepository.findById(id)
-                .orElseThrow(() -> new WorkflowValidationException("Webhook不存在: " + id));
-
-        if (!tenantId.equals(entity.getTenantId())) {
-            throw new WorkflowValidationException("无权操作此Webhook");
-        }
-
-        entity.markAsDeleted();
-        webhookRepository.save(entity);
-        log.info("Deleted webhook: id={}, tenantId={}", id, tenantId);
-    }
-
-    /**
-     * 获取 Webhook 触发器
-     */
-    public WebhookRegistrationResponse getWebhook(String tenantId, UUID id) {
-        WebhookRegistrationEntity entity = webhookRepository.findById(id)
-                .orElseThrow(() -> new WorkflowValidationException("Webhook不存在: " + id));
-
-        if (!tenantId.equals(entity.getTenantId())) {
-            throw new WorkflowValidationException("无权访问此Webhook");
-        }
-
-        return WebhookRegistrationResponse.fromEntity(entity, baseUrl);
-    }
-
-    /**
-     * 根据 Webhook 路径获取注册信息
-     */
-    public Optional<WebhookRegistrationEntity> getWebhookByPath(String webhookPath) {
-        return webhookRepository.findByWebhookPathAndDeletedAtIsNull(webhookPath);
-    }
-
-    /**
-     * 获取租户的所有 Webhook
-     */
-    public java.util.List<WebhookRegistrationResponse> listWebhooks(String tenantId) {
-        return webhookRepository.findByTenantIdAndDeletedAtIsNullOrderByCreatedAtDesc(tenantId)
-                .stream()
-                .map(entity -> WebhookRegistrationResponse.fromEntity(entity, baseUrl))
-                .toList();
     }
 
     /**
      * 处理 Webhook 触发请求
+     * <p>
+     * 根据配置和请求头决定同步或异步执行。
+     *
+     * @param webhookPath webhook 路径
+     * @param payload     请求体数据
+     * @param headers     HTTP 请求头
+     * @return 执行响应
      */
     @Transactional
-    public WebhookTriggerResponse handleWebhook(String webhookPath, WebhookRequest request, Map<String, String> headers) {
-        // 查找 Webhook 注册
-        WebhookRegistrationEntity webhook = webhookRepository.findByWebhookPathAndDeletedAtIsNull(webhookPath)
+    public WebhookExecutionResponse handleWebhook(String webhookPath,
+                                                   Map<String, Object> payload,
+                                                   Map<String, String> headers) {
+        // 查找触发器注册
+        TriggerRegistryEntity trigger = registryService.findByWebhookPath(webhookPath)
                 .orElse(null);
 
-        if (webhook == null) {
+        if (trigger == null) {
             log.warn("Webhook not found: {}", webhookPath);
-            return WebhookTriggerResponse.failure("Webhook未注册");
+            return WebhookExecutionResponse.error("Webhook 未注册");
         }
 
-        if (!webhook.getEnabled()) {
+        if (!trigger.getEnabled()) {
             log.warn("Webhook is disabled: {}", webhookPath);
-            return WebhookTriggerResponse.failure("Webhook已禁用");
+            return WebhookExecutionResponse.error("Webhook 已禁用");
         }
 
         // 验证签名（如果配置了密钥）
-        if (webhook.getSecretKey() != null && !webhook.getSecretKey().isEmpty()) {
-            String expectedSignature = calculateSignature(request, webhook.getSecretKey());
-            if (!constantTimeEquals(expectedSignature, request.getSignature())) {
+        if (trigger.getSecretKey() != null && !trigger.getSecretKey().isEmpty()) {
+            String signature = headers.get("X-Signature");
+            if (!verifySignature(payload, trigger.getSecretKey(), signature)) {
                 log.warn("Invalid signature for webhook: {}", webhookPath);
-                webhook.incrementTrigger(false);
-                webhookRepository.save(webhook);
-                return WebhookTriggerResponse.failure("签名验证失败");
+                registryService.incrementTrigger(trigger.getId(), false);
+                return WebhookExecutionResponse.error("签名验证失败");
             }
         }
 
+        // 确定执行模式
+        boolean isSync = determineExecutionMode(trigger, headers);
+
+        // 准备输入数据
+        Map<String, Object> inputData = prepareInputData(payload, headers, trigger);
+
+        if (isSync) {
+            return handleSyncExecution(trigger, inputData);
+        } else {
+            return handleAsyncExecution(trigger, inputData);
+        }
+    }
+
+    /**
+     * 处理同步执行
+     */
+    private WebhookExecutionResponse handleSyncExecution(TriggerRegistryEntity trigger,
+                                                         Map<String, Object> inputData) {
+        Instant startTime = Instant.now();
+        long timeout = getSyncTimeout(trigger);
+
         try {
-            // TODO: 实际触发工作流执行
-            // 这里需要调用 WorkflowDispatcher 来执行工作流
-            String executionId = generateExecutionId();
+            // 加载工作流定义
+            WorkflowDefinition definition = loadWorkflowDefinition(trigger.getWorkflowId());
+            CompletableFuture<WebhookExecutionResponse> future = CompletableFuture.supplyAsync(() -> {
+                try {
+                    WorkflowDispatcher.DispatchResult result = workflowDispatcher.execute(definition, inputData);
+                    registryService.incrementTrigger(trigger.getId(), result.isSuccess());
+                    return WebhookExecutionResponse.fromDispatchResult(result, trigger.getWorkflowId());
+                } catch (Exception e) {
+                    log.error("Sync execution failed: workflowId={}", trigger.getWorkflowId(), e);
+                    registryService.incrementTrigger(trigger.getId(), false);
+                    return WebhookExecutionResponse.error("执行失败: " + e.getMessage());
+                }
+            });
 
-            webhook.incrementTrigger(true);
-            webhookRepository.save(webhook);
+            // 等待结果或超时
+            WebhookExecutionResponse response = future.orTimeout(timeout, TimeUnit.MILLISECONDS).join();
+            response.setTriggerNodeId(trigger.getNodeId());
+            response.setTriggerType(trigger.getTriggerType());
 
-            log.info("Webhook triggered: path={}, workflowId={}, executionId={}",
-                    webhookPath, webhook.getWorkflowId(), executionId);
+            log.info("Webhook sync execution completed: path={}, workflowId={}, duration={}ms",
+                    trigger.getWebhookPath(), trigger.getWorkflowId(),
+                    Duration.between(startTime, Instant.now()).toMillis());
 
-            return WebhookTriggerResponse.success(executionId, webhook.getWorkflowId());
+            return response;
+
+        } catch (CompletionException e) {
+            // 检查是否是超时
+            if (e.getCause() instanceof TimeoutException) {
+                log.warn("Webhook sync execution timed out: path={}, timeout={}ms",
+                        trigger.getWebhookPath(), timeout);
+                registryService.incrementTrigger(trigger.getId(), false);
+
+                WebhookExecutionResponse errorResponse = WebhookExecutionResponse.error("执行超时");
+                errorResponse.setExecutionId(generateExecutionId(trigger.getWorkflowId()));
+                errorResponse.setWorkflowId(trigger.getWorkflowId());
+                return errorResponse;
+            }
+            // 其他错误
+            log.error("Webhook sync execution error: path={}", trigger.getWebhookPath(), e.getCause());
+            registryService.incrementTrigger(trigger.getId(), false);
+            return WebhookExecutionResponse.error("执行错误: " + e.getCause().getMessage());
+        } catch (Exception e) {
+            log.error("Webhook sync execution error: path={}", trigger.getWebhookPath(), e);
+            registryService.incrementTrigger(trigger.getId(), false);
+            return WebhookExecutionResponse.error("执行错误: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 处理异步执行
+     */
+    private WebhookExecutionResponse handleAsyncExecution(TriggerRegistryEntity trigger,
+                                                          Map<String, Object> inputData) {
+        try {
+            // 加载工作流定义
+            WorkflowDefinition definition = loadWorkflowDefinition(trigger.getWorkflowId());
+
+            // 异步执行
+            workflowDispatcher.executeAsync(definition, inputData, result -> {
+                // 执行完成后更新统计
+                registryService.incrementTrigger(trigger.getId(), result.isSuccess());
+                log.info("Webhook async execution completed: path={}, workflowId={}, success={}",
+                        trigger.getWebhookPath(), trigger.getWorkflowId(), result.isSuccess());
+            });
+
+            String executionId = generateExecutionId(trigger.getWorkflowId());
+
+            log.info("Webhook async execution started: path={}, workflowId={}, executionId={}",
+                    trigger.getWebhookPath(), trigger.getWorkflowId(), executionId);
+
+            return WebhookExecutionResponse.async(executionId, trigger.getWorkflowId(), null);
 
         } catch (Exception e) {
-            log.error("Failed to trigger webhook: {}", webhookPath, e);
-            webhook.incrementTrigger(false);
-            webhookRepository.save(webhook);
-            return WebhookTriggerResponse.failure("触发失败: " + e.getMessage());
+            log.error("Failed to start async execution: path={}", trigger.getWebhookPath(), e);
+            registryService.incrementTrigger(trigger.getId(), false);
+            return WebhookExecutionResponse.error("启动异步执行失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 确定执行模式（同步/异步）
+     * <p>
+     * 优先级：请求头 Prefer > 节点配置 asyncMode > 默认异步
+     */
+    private boolean determineExecutionMode(TriggerRegistryEntity trigger, Map<String, String> headers) {
+        // 1. 检查请求头
+        String preferHeader = headers.get(HEADER_PREFER);
+        if (preferHeader != null) {
+            if (preferHeader.contains(PREFER_WAIT_SYNC)) {
+                return true;
+            }
+            if (preferHeader.contains(PREFER_WAIT_ASYNC)) {
+                return false;
+            }
+        }
+
+        // 2. 检查节点配置
+        Map<String, Object> config = trigger.getTriggerConfig();
+        if (config != null) {
+            Object asyncMode = config.get("asyncMode");
+            if ("sync".equalsIgnoreCase(String.valueOf(asyncMode))) {
+                return true;
+            }
+        }
+
+        // 3. 默认异步
+        return false;
+    }
+
+    /**
+     * 获取同步执行超时时间
+     */
+    private long getSyncTimeout(TriggerRegistryEntity trigger) {
+        Map<String, Object> config = trigger.getTriggerConfig();
+        if (config != null) {
+            Object timeout = config.get("timeout");
+            if (timeout instanceof Number) {
+                return ((Number) timeout).longValue();
+            }
+        }
+        return DEFAULT_SYNC_TIMEOUT_MS;
+    }
+
+    /**
+     * 准备输入数据
+     */
+    private Map<String, Object> prepareInputData(Map<String, Object> payload,
+                                                  Map<String, String> headers,
+                                                  TriggerRegistryEntity trigger) {
+        Map<String, Object> input = new HashMap<>();
+
+        // 添加请求数据
+        input.put("data", payload != null ? payload : new HashMap<>());
+
+        // 添加 HTTP 请求元数据
+        Map<String, Object> httpMetadata = new HashMap<>();
+        httpMetadata.put("headers", headers);
+        httpMetadata.put("path", trigger.getWebhookPath());
+        httpMetadata.put("method", "POST");
+        httpMetadata.put("timestamp", System.currentTimeMillis());
+        input.put("_http", httpMetadata);
+
+        // 添加触发器配置中的初始数据
+        Map<String, Object> config = trigger.getTriggerConfig();
+        if (config != null && config.containsKey("inputData")) {
+            Object inputData = config.get("inputData");
+            if (inputData instanceof Map) {
+                input.putAll((Map<String, Object>) inputData);
+            }
+        }
+
+        return input;
+    }
+
+    /**
+     * 加载工作流定义
+     */
+    private WorkflowDefinition loadWorkflowDefinition(String workflowId) {
+        try {
+            return workflowDefinitionService.getWorkflowDefinition(workflowId);
+        } catch (Exception e) {
+            throw new WorkflowValidationException("Workflow not found: " + workflowId, e);
+        }
+    }
+
+    /**
+     * 验证 HMAC 签名
+     */
+    private boolean verifySignature(Map<String, Object> payload, String secret, String signature) {
+        if (signature == null || signature.isEmpty()) {
+            return false;
+        }
+
+        try {
+            String expectedSignature = calculateSignature(payload, secret);
+            return constantTimeEquals(expectedSignature, signature);
+        } catch (Exception e) {
+            log.error("Failed to verify signature", e);
+            return false;
         }
     }
 
     /**
      * 计算请求签名
      */
-    private String calculateSignature(WebhookRequest request, String secret) {
+    private String calculateSignature(Map<String, Object> payload, String secret) {
         try {
-            // HMAC-SHA256 签名
-            String payload = objectMapper.writeValueAsString(request.getData());
+            String payloadStr = objectMapper.writeValueAsString(payload);
             javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
             javax.crypto.spec.SecretKeySpec secretKeySpec = new javax.crypto.spec.SecretKeySpec(
                     secret.getBytes(), "HmacSHA256");
             mac.init(secretKeySpec);
-            byte[] hash = mac.doFinal(payload.getBytes());
-            // 使用 Base64 编码（Java 8+）
+            byte[] hash = mac.doFinal(payloadStr.getBytes());
             return java.util.Base64.getEncoder().encodeToString(hash);
         } catch (Exception e) {
-            log.error("Failed to calculate signature", e);
-            return "";
-        }
-    }
-
-    /**
-     * 生成执行ID
-     */
-    private String generateExecutionId() {
-        return "EXEC-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 8);
-    }
-
-    /**
-     * 启用/禁用 Webhook
-     */
-    @Transactional
-    public void toggleWebhook(String tenantId, UUID id, boolean enabled) {
-        WebhookRegistrationEntity entity = webhookRepository.findById(id)
-                .orElseThrow(() -> new WorkflowValidationException("Webhook不存在: " + id));
-
-        if (!tenantId.equals(entity.getTenantId())) {
-            throw new WorkflowValidationException("无权操作此Webhook");
-        }
-
-        entity.setEnabled(enabled);
-        webhookRepository.save(entity);
-        log.info("Webhook {}: id={}, tenantId={}", enabled ? "enabled" : "disabled", id, tenantId);
-    }
-
-    /**
-     * 重置 Webhook 统计信息
-     */
-    @Transactional
-    public void resetStatistics(String tenantId, UUID id) {
-        WebhookRegistrationEntity entity = webhookRepository.findById(id)
-                .orElseThrow(() -> new WorkflowValidationException("Webhook不存在: " + id));
-
-        if (!tenantId.equals(entity.getTenantId())) {
-            throw new WorkflowValidationException("无权操作此Webhook");
-        }
-
-        entity.resetStatistics();
-        webhookRepository.save(entity);
-        log.info("Reset statistics for webhook: id={}, tenantId={}", id, tenantId);
-    }
-
-    /**
-     * 验证 Webhook 路径
-     */
-    private void validateWebhookPath(String path) {
-        if (path == null || path.isEmpty()) {
-            throw new WorkflowValidationException("Webhook路径不能为空");
-        }
-        // 防止路径遍历攻击
-        if (path.contains("..") || path.contains("/") || path.contains("\\")) {
-            throw new WorkflowValidationException("Webhook路径包含非法字符");
-        }
-        // 只允许字母、数字、下划线、连字符
-        if (!path.matches("^[a-zA-Z0-9_-]+$")) {
-            throw new WorkflowValidationException("Webhook路径只能包含字母、数字、下划线和连字符");
-        }
-        if (path.length() > 100) {
-            throw new WorkflowValidationException("Webhook路径长度不能超过100");
+            throw new RuntimeException("Failed to calculate signature", e);
         }
     }
 
@@ -315,5 +338,20 @@ public class WebhookTriggerService {
             result |= aBytes[i] ^ bBytes[i];
         }
         return result == 0;
+    }
+
+    /**
+     * 生成执行 ID
+     */
+    private String generateExecutionId(String workflowId) {
+        return workflowId + "-" + System.currentTimeMillis() + "-" +
+                UUID.randomUUID().toString().substring(0, 8);
+    }
+
+    /**
+     * 获取 Webhook 配置（用于查询接口）
+     */
+    public Optional<TriggerRegistryEntity> getWebhookByPath(String webhookPath) {
+        return registryService.findByWebhookPath(webhookPath);
     }
 }

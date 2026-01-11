@@ -121,6 +121,7 @@ public class GraphNode {
             case WAIT -> "等待回调";
             case START -> "开始";
             case END -> "结束";
+            case TRIGGER -> "触发器";
         };
     }
 }
