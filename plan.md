@@ -170,7 +170,7 @@ CREATE TABLE workflow_execution_history (
 
 ---
 
-### 🔄 Week 9: 触发器 (部分完成)
+### ✅ Week 9: 触发器 (已完成)
 
 **目标**: 实现Webhook和Cron触发器
 
@@ -181,7 +181,7 @@ CREATE TABLE workflow_execution_history (
 | 9.3 | PowerJob管理器 | `.../config/PowerJobWorkerProperties.java` | 管理Scheduler、创建/删除任务 | 使用powerjob-worker | ✅ | # 4b57d44 |
 | 9.4 | Cron服务 | `.../cron/CronTriggerService.java` | 创建Cron触发器 | POST /api/triggers/cron | ✅ | # 4b57d44 |
 | 9.5 | WAIT节点 | `.../node/wait/WaitNodeExecutor.java` | 暂停执行、等待回调、释放内存 | 状态: RUNNING ↔ WAITING | ✅ | # 4b57d44 |
-| 9.6 | 触发器测试 | `.../trigger/TriggerTest.java` | Webhook、Cron、WAIT节点测试 | 覆盖所有触发器类型 | 🔲 | - |
+| 9.6 | 触发器测试 | `.../trigger/TriggerTest.java` | Webhook、Cron、WAIT节点测试 | 覆盖所有触发器类型 | ✅ | # ce5b673 |
 
 **Webhook注册表**:
 ```sql
@@ -197,7 +197,7 @@ CREATE TABLE webhook_registration (
 **验收标准 (Milestone M6)**:
 - [x] Webhook/Cron触发器工作
 - [x] WAIT节点异步化生效
-- [ ] 触发器测试通过
+- [x] 触发器测试通过
 
 ---
 
