@@ -148,11 +148,6 @@ public interface NodeExecutionLogRepository extends JpaRepository<NodeExecutionL
     List<String> findCompletedNodeIdsByExecutionIdStr(@Param("executionIdStr") String executionIdStr);
 
     /**
-     * 批量保存节点日志
-     */
-    List<NodeExecutionLogEntity> saveAll(List<NodeExecutionLogEntity> entities);
-
-    /**
      * 根据执行ID删除所有节点日志（软删除）
      */
     @Query("UPDATE NodeExecutionLogEntity n SET n.deletedAt = :deletedAt WHERE n.executionId = :executionId")
