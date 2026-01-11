@@ -78,13 +78,45 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8080/actuator/health || exit 1
 
-# Set JVM options
+# Set JVM options - Optimized for high concurrency & low latency with Virtual Threads
+# Using ZGC (Java 21+) for sub-millisecond GC pauses
 ENV JAVA_OPTS="-XX:+UseContainerSupport \
                -XX:MaxRAMPercentage=75.0 \
-               -XX:+UseG1GC \
-               -XX:+UnlockExperimentalVMOptions \
+               -XX:MinRAMPercentage=50.0 \
+               \
+               -XX:+UseZGC \
+               -XX:+ZGenerational \
+               -XX:ConcGCThreads=2 \
+               -XX:ParallelGCThreads=4 \
+               \
+               -XX:+AlwaysPreTouch \
                -XX:+UseStringDeduplication \
-               -Djava.security.egd=file:/dev/./urandom"
+               \
+               -Xss256k \
+               -Djdk.virtualThreadScheduler.parallelism=8 \
+               -Djdk.virtualThreadScheduler.maxPoolSize=256 \
+               \
+               -XX:CompileThreshold=10000 \
+               -XX:+TieredCompilation \
+               -XX:TieredStopAtLevel=4 \
+               \
+               -XX:+UnlockDiagnosticVMOptions \
+               -XX:+LogVMOutput \
+               -XX:LogFile=/app/logs/jvm.log \
+               \
+               -Xlog:gc*:file=/app/logs/gc.log:time,level,tags:filecount=5,filesize=50m \
+               -Xlog:safepoint:file=/app/logs/safepoint.log:time,level,tags:filecount=3,filesize=10m \
+               \
+               -XX:+UseFastAccessorMethods \
+               -XX:+UseInlineCaches \
+               \
+               -Djdk.nio.maxCachedBufferSize=262144 \
+               -Dio.netty.allocator.type=pooled \
+               -Dio.netty.leakDetection.level=disabled \
+               \
+               -Djava.awt.headless=true \
+               -Dfile.encoding=UTF-8 \
+               -Dsun.jnu.encoding=UTF-8"
 
 # Set Spring profile
 ENV SPRING_PROFILES_ACTIVE=prod

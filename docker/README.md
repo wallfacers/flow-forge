@@ -46,86 +46,72 @@ Flow-Forge 是一个企业级 DAG 工作流引擎，支持私有化部署。本�
 
 ## 快速开始
 
-### 1. 克隆代码
+### 1. 准备工作
+
+**Linux/Mac**: 确保 Docker 已安装并运行
+**Windows**: 安装 [Docker Desktop](https://www.docker.com/products/docker-desktop/)，启用 WSL2 后端，分配 4GB+ 内存
+
+### 2. 克隆代码
 
 ```bash
 git clone https://github.com/your-org/flow-forge.git
-cd flow-forge
+cd flow-forge/docker
 ```
 
-### 2. 创建环境变量文件
-
-创建 `.env` 文件（与 docker-compose.yml 同目录）：
+### 3. 配置环境变量
 
 ```bash
-# ========================================
-# 外部 PostgreSQL 连接配置 (必填)
-# ========================================
-POSTGRES_HOST=your-postgres-host           # PostgreSQL 服务器地址
-POSTGRES_PORT=5432                          # PostgreSQL 端口
-POSTGRES_DB=flow_forge                      # 数据库名称
-POSTGRES_USER=flow_forge                    # 数据库用户
-POSTGRES_PASSWORD=your_secure_password      # 数据库密码
+# 复制示例配置
+cp .env.example .env
 
-# ========================================
-# Redis 配置 (可选，使用默认值即可)
-# ========================================
-REDIS_PASSWORD=                             # Redis 密码 (空表示无密码)
-REDIS_EXPOSE_PORT=6379                      # Redis 对外暴露端口
-
-# ========================================
-# MinIO 配置 (可选，使用默认值即可)
-# ========================================
-MINIO_ACCESS_KEY=minioadmin                 # MinIO 访问密钥
-MINIO_SECRET_KEY=minioadmin                 # MinIO 秘密密钥
-MINIO_BUCKET=flow-forge                     # MinIO 存储桶名称
-MINIO_API_PORT=9000                         # MinIO API 端口
-MINIO_CONSOLE_PORT=9001                     # MinIO 控制台端口
-
-# ========================================
-# 应用配置
-# ========================================
-SERVER_PORT=8080                            # 应用服务端口
-LOG_LEVEL=INFO                              # 日志级别 (DEBUG/INFO/WARN/ERROR)
+# 编辑配置文件，修改 PostgreSQL 连接信息
+vim .env
 ```
 
-### 3. 初始化数据库
-
-在您的 PostgreSQL 实例中执行初始化脚本：
-
-```bash
-# 方式一：使用 psql 命令
-psql -h your-postgres-host -U postgres -d flow_forge -f flow-forge-infrastructure/src/main/resources/db/init.sql
-
-# 方式二：使用 Docker
-docker run --rm -v $(pwd)/flow-forge-infrastructure/src/main/resources/db:/sql \
-  postgres:15 psql -h your-postgres-host -U postgres -d flow_forge -f /sql/init.sql
+**Windows (PowerShell)**:
+```powershell
+Copy-Item .env.example .env
+notepad .env
 ```
 
-### 4. 启动服务
+### 4. 初始化数据库（可选）
+
+如使用 Docker 运行 PostgreSQL：
 
 ```bash
-# 构建并启动所有服务
+docker run -d --name flow-forge-postgres \
+  -p 5432:5432 \
+  -e POSTGRES_DB=flow_forge \
+  -e POSTGRES_USER=flow_forge \
+  -e POSTGRES_PASSWORD=YourPassword123 \
+  -v postgres-data:/var/lib/postgresql/data \
+  postgres:15
+
+# 等待启动后初始化
+docker exec -i flow-forge-postgres psql -U flow_forge -d flow_forge < ../flow-forge-infrastructure/src/main/resources/db/init.sql
+```
+
+### 5. 启动服务
+
+```bash
 docker-compose up -d
-
-# 查看服务状态
-docker-compose ps
-
-# 查看应用日志
 docker-compose logs -f flow-forge
 ```
 
-### 5. 验证部署
+### 6. 验证部署
 
-访问健康检查端点：
 ```bash
 curl http://localhost:8080/actuator/health
+# 输出: {"status":"UP"}
 ```
 
-预期输出：
-```json
-{"status":"UP"}
-```
+### Windows 注意事项
+
+| 问题 | 解决方案 |
+|------|----------|
+| 连接宿主机 PostgreSQL | 使用 `host.docker.internal` |
+| 防火墙阻止 | 允许 Docker Desktop 通过防火墙 |
+| 内存不足 | 设置中调整为 4GB+ |
 
 ---
 
@@ -149,7 +135,11 @@ curl http://localhost:8080/actuator/health
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
 | `-XX:MaxRAMPercentage` | `75.0` | 最大使用容器内存的百分比 |
-| `-XX:+UseG1GC` | - | 使用 G1 垃圾收集器 |
+| `-XX:MinRAMPercentage` | `50.0` | 最小堆内存比例，防止过度压缩 |
+| `-XX:+UseZGC` | - | 使用 ZGC 垃圾收集器（低延迟，停顿<1ms） |
+| `-XX:+ZGenerational` | - | 启用分代 ZGC（Java 21+） |
+| `-Xss256k` | `256k` | 线程栈大小（虚拟线程优化） |
+| `-Djdk.virtualThreadScheduler.parallelism` | `8` | 虚拟线程调度器并行度 |
 | `-XX:+UseStringDeduplication` | - | 启用字符串去重 |
 
 ---
