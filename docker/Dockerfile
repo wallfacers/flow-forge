@@ -8,9 +8,7 @@ LABEL description="Flow-Forge DAG Workflow Engine"
 # Set working directory
 WORKDIR /build
 
-# Copy Maven wrapper and pom files (for better layer caching)
-COPY mvnw .
-COPY .mvn .mvn
+# Copy pom files (for better layer caching)
 COPY pom.xml .
 COPY flow-forge-core-model/pom.xml flow-forge-core-model/
 COPY flow-forge-nodes/pom.xml flow-forge-nodes/
@@ -63,10 +61,6 @@ WORKDIR /app
 
 # Copy JAR from builder stage
 COPY --from=builder /build/app.jar /app/flow-forge.jar
-
-# Copy startup script
-COPY --from=builder /build/flow-forge-api/src/main/docker/start.sh /app/start.sh
-RUN chmod +x /app/start.sh
 
 # Change to non-root user
 USER flowforge

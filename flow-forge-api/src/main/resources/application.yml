@@ -5,6 +5,11 @@ spring:
   application:
     name: flow-forge
 
+  # 虚拟线程配置 (Spring Boot 3.2+)
+  threads:
+    virtual:
+      enabled: ${SPRING_VIRTUAL_THREADS_ENABLED:true}
+
   # 数据源配置 (PostgreSQL)
   datasource:
     url: ${POSTGRES_URL:jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:flow_forge}}
