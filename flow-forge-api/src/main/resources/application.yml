@@ -134,8 +134,8 @@ logging:
     root: INFO
     com.workflow: ${LOG_LEVEL:DEBUG}
     org.springframework.web: INFO
-    org.hibernate.SQL: ${SHOW_SQL:false:WARN}
-    org.hibernate.type.descriptor.sql.BasicBinder: ${SHOW_SQL:false:WARN}
+    org.hibernate.SQL: ${SQL_LOG_LEVEL:WARN}
+    org.hibernate.type.descriptor.sql.BasicBinder: ${SQL_LOG_LEVEL:WARN}
   pattern:
     console: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n'
   file:
