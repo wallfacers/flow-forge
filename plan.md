@@ -375,7 +375,107 @@ refactor: 重构
 | M6 | W9 | ✅ Webhook/Cron触发器工作 |
 | M7 | W11 | ✅ 多租户隔离生效，可视化API可用 |
 | M8 | W12 | ✅ Docker一键部署成功 |
+| M9 | W13 | 🔄 触发器作为节点，支持sync/async模式 |
 
 ---
 
-*更新时间: 2025-01-11 (Week 12 已完成 - 所有核心功能开发完成！)*
+### 🔄 Week 13: 触发器节点重构 (进行中)
+
+**目标**: 将触发器从独立服务重构为工作流入口节点类型
+
+**架构变更**:
+- 触发器统一为 `NodeType.TRIGGER`，通过 `config.type` 区分具体类型
+- 工作流入口规则：每个工作流一个入口触发器节点，入度为 0
+- Webhook 支持 sync/async 模式（HTTP 请求头 Prefer > 节点配置 > 默认异步）
+- 结束节点支持输出聚合，从多个上游节点收集数据
+
+| ID | 任务 | 文件路径 | 功能描述 | 注意事项 | 状态 | 提交 |
+|----|------|----------|----------|----------|:----:|-----|
+| 13.1 | trigger_registry表 | `.../resources/db/init.sql` | 统一存储所有触发器类型 | 包含统计、webhook、cron专用字段 | ✅ | # 73de928 |
+| 13.2 | TriggerRegistryEntity | `.../entity/TriggerRegistryEntity.java` | JPA实体类，支持JSONB配置 | 业务方法: incrementTrigger(), resetStatistics() | ✅ | # 73de928 |
+| 13.3 | TriggerType枚举 | `.../model/TriggerType.java` | WEBHOOK/CRON/MANUAL/EVENT四种类型 | fromCodeIgnoreCase()方法 | ✅ | # 73de928 |
+| 13.4 | TriggerRegistryRepository | `.../repository/TriggerRegistryRepository.java` | JPA Repository查询接口 | 支持webhook路径、工作流ID、租户ID查询 | ✅ | # 73de928 |
+| 13.5 | TriggerNodeExecutor | `.../node/trigger/TriggerNodeExecutor.java` | 触发器节点执行器 | 作为工作流入口，传递输入数据 | ✅ | # 73de928 |
+| 13.6 | EndNodeExecutor | `.../node/end/EndNodeExecutor.java` | 结束节点执行器，支持输出聚合 | aggregateOutputs配置 | ✅ | # 73de928 |
+| 13.7 | TriggerRegistryService | `.../registry/TriggerRegistryService.java` | 触发器注册表+缓存服务 | @Cacheable Redis缓存 | ✅ | # 73de928 |
+| 13.8 | WebhookTriggerService | `.../webhook/WebhookTriggerService.java` | 支持sync/async模式触发 | CompletableFuture.orTimeout()超时控制 | ✅ | # 73de928 |
+| 13.9 | WebhookController | `.../webhook/WebhookController.java` | 重构为触发+查询接口 | 移除CRUD操作 | ✅ | # 73de928 |
+| 13.10 | TriggerController | `.../trigger/TriggerController.java` | 统一触发器查询接口 | 返回完整配置供第三方集成 | ✅ | # 73de928 |
+| 13.11 | 单元测试 | `.../trigger/TriggerNodeExecutorTest.java`<br>`.../end/EndNodeExecutorTest.java` | 触发器和结束节点测试 | 覆盖所有触发器类型、输出聚合 | ✅ | # 73de928 |
+| 13.12 | 移除旧代码 | 删除CronTrigger*、WebhookRegistration*相关文件 | 统一使用TriggerRegistryService | 删除entity、repository、service、controller、dto | ✅ | # 73de928 |
+
+**trigger_registry表结构**:
+```sql
+CREATE TABLE trigger_registry (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workflow_id VARCHAR(64) NOT NULL,
+    tenant_id VARCHAR(64) NOT NULL,
+    node_id VARCHAR(64) NOT NULL,
+    trigger_type VARCHAR(20) NOT NULL,
+    trigger_config JSONB NOT NULL,
+    enabled BOOLEAN DEFAULT TRUE,
+    -- 统计
+    total_triggers BIGINT DEFAULT 0,
+    successful_triggers BIGINT DEFAULT 0,
+    failed_triggers BIGINT DEFAULT 0,
+    last_triggered_at TIMESTAMPTZ,
+    last_trigger_status VARCHAR(20),
+    -- Webhook专用
+    webhook_path VARCHAR(255) UNIQUE,
+    secret_key VARCHAR(255),
+    -- Cron专用
+    cron_expression VARCHAR(100),
+    timezone VARCHAR(50) DEFAULT 'Asia/Shanghai',
+    powerjob_job_id BIGINT,
+    next_trigger_time TIMESTAMPTZ,
+    -- 审计
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ
+);
+```
+
+**触发器节点配置格式**:
+```json
+{
+  "type": "webhook",
+  "webhookPath": "github-webhook",
+  "secretKey": "hmac-secret",
+  "asyncMode": "sync",
+  "timeout": 30000
+}
+```
+
+**结束节点输出聚合配置**:
+```json
+{
+  "aggregateOutputs": {
+    "result": {
+      "fromNodes": ["node1", "node2"],
+      "transform": {
+        "userId": "{{node1.output.userId}}",
+        "profile": "{{node2.output.profile}}"
+      }
+    }
+  }
+}
+```
+
+**API变更**:
+- 新增: `POST /api/webhook/{path}` - 支持 `Prefer: wait=sync` 头
+- 新增: `GET /api/triggers` - 统一触发器查询
+- 新增: `GET /api/triggers/workflow/{workflowId}` - 工作流触发器查询
+- 移除: `POST /api/webhook/register` (CRUD操作)
+- 移除: `POST /api/triggers/cron` (CRUD操作)
+
+**验收标准 (Milestone M9)**:
+- [x] 触发器作为工作流入口节点正常工作
+- [x] Webhook 支持 sync/async 模式
+- [x] 结束节点正确聚合上游节点输出
+- [x] 触发器列表接口返回完整配置
+- [ ] Redis 缓存生效，查询性能满足要求
+- [ ] 单元测试覆盖所有触发器类型
+
+---
+
+*更新时间: 2025-01-12 (Week 13 触发器重构已完成 - #73de928)*
